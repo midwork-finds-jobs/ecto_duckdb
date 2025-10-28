@@ -1,10 +1,10 @@
-defmodule EctoSQLite3.Schemas.Schema2 do
+defmodule EctoDuckDB.Schemas.Schema2 do
   @moduledoc false
 
   use Ecto.Schema
 
   schema "schema2" do
-    belongs_to(:post, EctoSQLite3.Schemas.Schema,
+    belongs_to(:post, EctoDuckDB.Schemas.Schema,
       references: :x,
       foreign_key: :z
     )

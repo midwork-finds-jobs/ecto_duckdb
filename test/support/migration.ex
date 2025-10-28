@@ -1,4 +1,4 @@
-defmodule EctoSQLite3.Integration.Migration do
+defmodule EctoDuckDB.Integration.Migration do
   @moduledoc false
 
   use Ecto.Migration

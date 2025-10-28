@@ -2,7 +2,7 @@ defmodule Ecto.Integration.StreamingTest do
   use Ecto.Integration.Case
 
   alias Ecto.Integration.TestRepo
-  alias EctoSQLite3.Schemas.User
+  alias EctoDuckDB.Schemas.User
 
   import Ecto.Query
 

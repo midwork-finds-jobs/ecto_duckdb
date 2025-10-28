@@ -3,7 +3,7 @@ defmodule Ecto.Integration.JsonTest do
 
   alias Ecto.Adapters.SQL
   alias Ecto.Integration.TestRepo
-  alias EctoSQLite3.Schemas.Setting
+  alias EctoDuckDB.Schemas.Setting
 
   @moduletag :integration
 

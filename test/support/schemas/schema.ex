@@ -1,4 +1,4 @@
-defmodule EctoSQLite3.Schemas.Schema do
+defmodule EctoDuckDB.Schemas.Schema do
   @moduledoc false
 
   use Ecto.Schema
@@ -10,12 +10,12 @@ defmodule EctoSQLite3.Schemas.Schema do
     field(:w, {:array, :integer})
     field(:meta, :map)
 
-    has_many(:comments, EctoSQLite3.Schemas.Schema2,
+    has_many(:comments, EctoDuckDB.Schemas.Schema2,
       references: :x,
       foreign_key: :z
     )
 
-    has_one(:permalink, EctoSQLite3.Schemas.Schema3,
+    has_one(:permalink, EctoDuckDB.Schemas.Schema3,
       references: :y,
       foreign_key: :id
     )

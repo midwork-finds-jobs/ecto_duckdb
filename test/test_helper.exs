@@ -8,8 +8,8 @@ Code.require_file("#{ecto}/integration_test/support/schemas.exs", __DIR__)
 
 alias Ecto.Integration.TestRepo
 
-Application.put_env(:ecto_sqlite3, TestRepo,
-  adapter: Ecto.Adapters.SQLite3,
+Application.put_env(:ecto_duckdb, TestRepo,
+  adapter: Ecto.Adapters.DuckDB,
   database: "/tmp/exqlite_sandbox_test.db",
   pool: Ecto.Adapters.SQL.Sandbox,
   show_sensitive_data_on_connection_error: true
@@ -26,15 +26,15 @@ defmodule Ecto.Integration.Case do
   end
 end
 
-{:ok, _} = Ecto.Adapters.SQLite3.ensure_all_started(TestRepo.config(), :temporary)
+{:ok, _} = Ecto.Adapters.DuckDB.ensure_all_started(TestRepo.config(), :temporary)
 
 # Load up the repository, start it, and run migrations
-_ = Ecto.Adapters.SQLite3.storage_down(TestRepo.config())
-:ok = Ecto.Adapters.SQLite3.storage_up(TestRepo.config())
+_ = Ecto.Adapters.DuckDB.storage_down(TestRepo.config())
+:ok = Ecto.Adapters.DuckDB.storage_up(TestRepo.config())
 
 {:ok, _} = TestRepo.start_link()
 
-:ok = Ecto.Migrator.up(TestRepo, 0, EctoSQLite3.Integration.Migration, log: false)
+:ok = Ecto.Migrator.up(TestRepo, 0, EctoDuckDB.Integration.Migration, log: false)
 Ecto.Adapters.SQL.Sandbox.mode(TestRepo, :manual)
 Process.flag(:trap_exit, true)
 

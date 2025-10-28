@@ -1,14 +1,14 @@
-defmodule Ecto.Adapters.SQLite3.TestHelpers do
+defmodule Ecto.Adapters.DuckDB.TestHelpers do
   @moduledoc """
   These are helpers that are useful in the `Connection` related tests.
   """
 
   alias Ecto.Adapter.Queryable
-  alias Ecto.Adapters.SQLite3.Connection
+  alias Ecto.Adapters.DuckDB.Connection
 
   def plan(query, operation \\ :all) do
     {query, _cast_params, _dump_params} =
-      Queryable.plan_query(operation, Ecto.Adapters.SQLite3, query)
+      Queryable.plan_query(operation, Ecto.Adapters.DuckDB, query)
 
     query
   end

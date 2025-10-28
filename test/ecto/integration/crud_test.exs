@@ -2,10 +2,10 @@ defmodule Ecto.Integration.CrudTest do
   use Ecto.Integration.Case
 
   alias Ecto.Integration.TestRepo
-  alias EctoSQLite3.Schemas.Account
-  alias EctoSQLite3.Schemas.AccountUser
-  alias EctoSQLite3.Schemas.Product
-  alias EctoSQLite3.Schemas.User
+  alias EctoDuckDB.Schemas.Account
+  alias EctoDuckDB.Schemas.AccountUser
+  alias EctoDuckDB.Schemas.Product
+  alias EctoDuckDB.Schemas.User
 
   import Ecto.Query
 

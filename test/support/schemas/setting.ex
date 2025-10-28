@@ -1,4 +1,4 @@
-defmodule EctoSQLite3.Schemas.Setting do
+defmodule EctoDuckDB.Schemas.Setting do
   @moduledoc false
 
   use Ecto.Schema

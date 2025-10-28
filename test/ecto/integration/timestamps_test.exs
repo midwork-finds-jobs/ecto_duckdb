@@ -2,8 +2,8 @@ defmodule Ecto.Integration.TimestampsTest do
   use Ecto.Integration.Case
 
   alias Ecto.Integration.TestRepo
-  alias EctoSQLite3.Schemas.Account
-  alias EctoSQLite3.Schemas.Product
+  alias EctoDuckDB.Schemas.Account
+  alias EctoDuckDB.Schemas.Product
 
   import Ecto.Query
 

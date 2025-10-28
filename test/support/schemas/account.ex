@@ -1,12 +1,12 @@
-defmodule EctoSQLite3.Schemas.Account do
+defmodule EctoDuckDB.Schemas.Account do
   @moduledoc false
 
   use Ecto.Schema
 
   import Ecto.Changeset
 
-  alias EctoSQLite3.Schemas.Product
-  alias EctoSQLite3.Schemas.User
+  alias EctoDuckDB.Schemas.Product
+  alias EctoDuckDB.Schemas.User
 
   schema "accounts" do
     field(:name, :string)

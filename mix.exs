@@ -1,25 +1,25 @@
-defmodule EctoSQLite3.MixProject do
+defmodule EctoDuckDB.MixProject do
   use Mix.Project
 
-  @version "0.22.0"
+  @version "0.1.0"
 
   def project do
     [
-      app: :ecto_sqlite3,
+      app: :ecto_duckdb,
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
-      source_url: "https://github.com/elixir-sqlite/ecto_sqlite3",
-      homepage_url: "https://github.com/elixir-sqlite/ecto_sqlite3",
+      source_url: "https://github.com/onnimonni/duckex",
+      homepage_url: "https://github.com/onnimonni/duckex",
       deps: deps(),
       package: package(),
       description: description(),
-      test_paths: test_paths(System.get_env("EXQLITE_INTEGRATION")),
+      test_paths: test_paths(System.get_env("DUCKDB_INTEGRATION")),
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
 
       # Docs
-      name: "Ecto SQLite3",
+      name: "Ecto DuckDB",
       docs: docs()
     ]
   end
@@ -37,7 +37,7 @@ defmodule EctoSQLite3.MixProject do
       {:decimal, "~> 1.6 or ~> 2.0"},
       {:ecto_sql, "~> 3.13.0"},
       {:ecto, "~> 3.13.0"},
-      {:exqlite, "~> 0.22"},
+      {:duckex, path: "../"},
       {:ex_doc, "~> 0.27", only: [:dev], runtime: false},
       {:jason, ">= 0.0.0", only: [:dev, :test, :docs]},
       {:temp, "~> 0.4", only: [:test]},
@@ -52,7 +52,7 @@ defmodule EctoSQLite3.MixProject do
   end
 
   defp description do
-    "An SQLite3 Ecto3 adapter."
+    "A DuckDB Ecto3 adapter."
   end
 
   defp package do
@@ -64,20 +64,20 @@ defmodule EctoSQLite3.MixProject do
         README.md
         LICENSE
       ),
-      name: "ecto_sqlite3",
+      name: "ecto_duckdb",
       licenses: ["MIT"],
       links: %{
-        "GitHub" => "https://github.com/elixir-sqlite/ecto_sqlite3",
-        "docs" => "https://hexdocs.pm/ecto_sqlite3"
+        "GitHub" => "https://github.com/onnimonni/duckex",
+        "docs" => "https://hexdocs.pm/ecto_duckdb"
       }
     ]
   end
 
   defp docs do
     [
-      main: "Ecto.Adapters.SQLite3",
+      main: "Ecto.Adapters.DuckDB",
       source_ref: "v#{@version}",
-      source_url: "https://github.com/elixir-sqlite/ecto_sqlite3"
+      source_url: "https://github.com/onnimonni/duckex"
     ]
   end
 

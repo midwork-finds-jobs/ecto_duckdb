@@ -2,7 +2,7 @@ defmodule Ecto.Integration.BlobTest do
   use Ecto.Integration.Case
 
   alias Ecto.Integration.TestRepo
-  alias EctoSQLite3.Schemas.Setting
+  alias EctoDuckDB.Schemas.Setting
 
   @moduletag :integration
 
