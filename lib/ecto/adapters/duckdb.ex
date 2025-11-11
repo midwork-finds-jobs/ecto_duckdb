@@ -12,7 +12,12 @@ defmodule Ecto.Adapters.DuckDB do
   ### Provided options
 
     * `:database` - The path to the database. In memory is allowed. You can use
-      `:memory` or `":memory:"` to designate that.
+      `:memory` or `":memory:"` to designate that. For DuckLake, use a `.ducklake`
+      extension (e.g., `"myapp.ducklake"`).
+    * `:ducklake` - Boolean to enable DuckLake mode. Defaults to `false`. Can also be
+      auto-detected if database path ends with `.ducklake`.
+    * `:ducklake_data_path` - Optional custom path for storing Parquet files when using
+      DuckLake. By default, creates a `.files` directory next to the database.
     * `:default_transaction_mode` - one of `:deferred` (default), `:immediate`, or
       `:exclusive`. If a mode is not specified in a call to `Repo.transaction/2`, this
       will be the default transaction mode.
@@ -203,13 +208,13 @@ defmodule Ecto.Adapters.DuckDB do
 
   ### Transaction mode
 
-  By default, [DuckDB transactions][8] run in `DEFERRED` mode. However, in 
-  web applications with a balanced load of reads and writes, using  `IMMEDIATE` 
+  By default, [DuckDB transactions][8] run in `DEFERRED` mode. However, in
+  web applications with a balanced load of reads and writes, using  `IMMEDIATE`
   mode may yield better performance.
 
   Here are several ways to specify a different transaction mode:
 
-  **Pass `mode: :immediate` to `Repo.transaction/2`:** Use this approach to set 
+  **Pass `mode: :immediate` to `Repo.transaction/2`:** Use this approach to set
   the transaction mode for individual transactions.
 
       Multi.new()
@@ -218,8 +223,8 @@ defmodule Ecto.Adapters.DuckDB do
       end)
       |> Repo.transaction(mode: :immediate)
 
-  **Define custom transaction functions:** Create wrappers, such as 
-  `Repo.immediate_transaction/2` or `Repo.deferred_transaction/2`, to easily 
+  **Define custom transaction functions:** Create wrappers, such as
+  `Repo.immediate_transaction/2` or `Repo.deferred_transaction/2`, to easily
   apply different modes where needed.
 
       defmodule MyApp.Repo do
@@ -232,7 +237,7 @@ defmodule Ecto.Adapters.DuckDB do
         end
       end
 
-  **Set a global default:** Configure `:default_transaction_mode` to apply a 
+  **Set a global default:** Configure `:default_transaction_mode` to apply a
   preferred mode for all transactions, unless explicitly passed a different
   `:mode` to `Repo.transaction/2`.
 
@@ -284,28 +289,17 @@ defmodule Ecto.Adapters.DuckDB do
 
   @impl Ecto.Adapter.Storage
   def storage_up(options) do
-    database = Keyword.get(options, :database)
-    pool_size = Keyword.get(options, :pool_size)
+    database = Keyword.get(options, :database, ":memory:")
+    pool_size = Keyword.get(options, :pool_size, 1)
 
     cond do
-      is_nil(database) ->
-        raise ArgumentError,
-              """
-              No DuckDB database path specified. Please check the configuration for your Repo.
-              Your config/*.exs file should have something like this in it:
-
-                config :my_app, MyApp.Repo,
-                  adapter: Ecto.Adapters.DuckDB,
-                  database: "/path/to/sqlite/database"
-              """
+      pool_size != 1 ->
+        raise ArgumentError, """
+          DuckDB databases must use a pool_size of 1
+        """
 
       File.exists?(database) ->
         {:error, :already_up}
-
-      database == ":memory:" && pool_size != 1 ->
-        raise ArgumentError, """
-        In memory databases must have a pool_size of 1
-        """
 
       true ->
         # For DuckDB, just creating the file is enough
@@ -315,10 +309,13 @@ defmodule Ecto.Adapters.DuckDB do
             # Try to initialize it properly by opening and closing a connection
             case Duckex.start_link(Keyword.put(options, :name, nil)) do
               {:ok, conn} ->
+                # Create DuckLake metadata databases if this repo uses DuckLake
+                create_ducklake_metadata_databases(conn, options)
+
                 GenServer.stop(conn)
                 :ok
 
-              {:error, _} = error ->
+              {:error, _} = _error ->
                 # If we can't connect, at least the file exists
                 # This can happen if DBConnection.Watcher isn't started
                 # Just return :ok since the file was created
@@ -342,13 +339,43 @@ defmodule Ecto.Adapters.DuckDB do
     # We'll use a simple genserver-based lock to serialize migration access
 
     %{repo: repo} = meta
-    {:ok, lock_pid} = Agent.start_link(fn -> :ok end, name: Module.concat([repo, MigrationLock]))
+
+    {:ok, lock_pid} =
+      Agent.start_link(fn -> :ok end, name: Module.concat([repo, MigrationLock]))
+
+    # Note: DuckLake metadata schemas must be created manually before migrations
+    # Run: duckdb your_db.duckdb "CREATE SCHEMA IF NOT EXISTS __ducklake_metadata_{db_name};"
 
     try do
       fun.()
     after
       if Process.alive?(lock_pid), do: Agent.stop(lock_pid)
     end
+  end
+
+  # Creates DuckLake metadata schemas during storage_up
+  # This is called when the database is first created (mix ecto.create)
+  defp create_ducklake_metadata_databases(conn, options) do
+    attach_configs = options[:attach] || []
+
+    Enum.each(attach_configs, fn attach_config ->
+      {path, opts} = case attach_config do
+        {p, o} when is_list(o) -> {p, o}
+        {p, o, _conn_opts} -> {p, o}
+      end
+
+      as_name = opts[:as]
+
+      if as_name && String.starts_with?(to_string(path), "ducklake:") do
+        metadata_schema = "__ducklake_metadata_#{as_name}"
+        create_schema_sql = "CREATE SCHEMA IF NOT EXISTS #{metadata_schema}"
+
+        # INSTALL ducklake;
+        # ATTACH 'ducklake:sample_phoenix_ducklake_setup.duckdb' AS my_ducklake;
+
+        Duckex.query!(conn, create_schema_sql)
+      end
+    end)
   end
 
   @impl Ecto.Adapter.Structure

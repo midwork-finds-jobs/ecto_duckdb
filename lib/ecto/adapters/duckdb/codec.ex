@@ -87,12 +87,26 @@ defmodule Ecto.Adapters.DuckDB.Codec do
     {:ok, value}
   end
 
-  def time_decode(value) do
+  def time_decode(value) when is_integer(value) do
+    # DuckDB returns time as microseconds since midnight
+    seconds = div(value, 1_000_000)
+    microseconds = rem(value, 1_000_000)
+
+    hour = div(seconds, 3600)
+    minute = div(rem(seconds, 3600), 60)
+    second = rem(seconds, 60)
+
+    Time.new(hour, minute, second, {microseconds, 6})
+  end
+
+  def time_decode(value) when is_binary(value) do
     case Time.from_iso8601(value) do
       {:ok, _time} = result -> result
       {:error, _} -> :error
     end
   end
+
+  def time_decode(_value), do: :error
 
   def json_encode(value) when is_bitstring(value), do: {:ok, value}
 

@@ -491,6 +491,24 @@ defmodule Ecto.Adapters.DuckDB.Connection do
   end
 
   @impl true
+  def execute_ddl({:create, %Index{prefix: prefix} = index}) when not is_nil(prefix) do
+    raise ArgumentError, """
+    Creating indexes on tables with a prefix (schema) is not recommended with DuckDB.
+
+    If you are using DuckLake (attached databases), note that DuckLake does not support indexes.
+    DuckLake uses columnar Parquet storage which provides efficient filtering without traditional indexes.
+
+    Table prefix: #{inspect(prefix)}
+    Index name: #{inspect(index.name)}
+    Table name: #{inspect(index.table)}
+
+    If you need to create an index on a regular DuckDB table (not DuckLake), consider:
+    1. Moving the table to the main database (no prefix)
+    2. Using filtered queries instead of indexes for better performance with columnar storage
+    """
+  end
+
+  @impl true
   def execute_ddl({:create, %Index{} = index}) do
     fields = Enum.map_intersperse(index.columns, ", ", &index_expr/1)
 
@@ -508,6 +526,25 @@ defmodule Ecto.Adapters.DuckDB.Connection do
         if_do(index.where, [" WHERE ", to_string(index.where)])
       ]
     ]
+  end
+
+  @impl true
+  def execute_ddl({:create_if_not_exists, %Index{prefix: prefix} = index})
+      when not is_nil(prefix) do
+    raise ArgumentError, """
+    Creating indexes on tables with a prefix (schema) is not recommended with DuckDB.
+
+    If you are using DuckLake (attached databases), note that DuckLake does not support indexes.
+    DuckLake uses columnar Parquet storage which provides efficient filtering without traditional indexes.
+
+    Table prefix: #{inspect(prefix)}
+    Index name: #{inspect(index.name)}
+    Table name: #{inspect(index.table)}
+
+    If you need to create an index on a regular DuckDB table (not DuckLake), consider:
+    1. Moving the table to the main database (no prefix)
+    2. Using filtered queries instead of indexes for better performance with columnar storage
+    """
   end
 
   @impl true
@@ -599,75 +636,8 @@ defmodule Ecto.Adapters.DuckDB.Connection do
     raise ArgumentError, "DuckDB adapter does not support keyword lists in execute"
   end
 
-  @impl true
-  def execute_ddl({:create, %Index{} = index}) do
-    fields = Enum.map_intersperse(index.columns, ", ", &index_expr/1)
-
-    [
-      [
-        "CREATE ",
-        if_do(index.unique, "UNIQUE "),
-        "INDEX",
-        ?\s,
-        quote_name(index.name),
-        " ON ",
-        quote_table(index.prefix, index.table),
-        " (",
-        fields,
-        ?),
-        if_do(index.where, [" WHERE ", to_string(index.where)])
-      ]
-    ]
-  end
-
-  def execute_ddl({:create_if_not_exists, %Index{} = index}) do
-    fields = Enum.map_intersperse(index.columns, ", ", &index_expr/1)
-
-    [
-      [
-        "CREATE ",
-        if_do(index.unique, "UNIQUE "),
-        "INDEX IF NOT EXISTS",
-        ?\s,
-        quote_name(index.name),
-        " ON ",
-        quote_table(index.prefix, index.table),
-        " (",
-        fields,
-        ?),
-        if_do(index.where, [" WHERE ", to_string(index.where)])
-      ]
-    ]
-  end
-
   def execute_ddl({:create, %Constraint{}}) do
     raise ArgumentError, "DuckDB does not support ALTER TABLE ADD CONSTRAINT."
-  end
-
-  def execute_ddl({:drop, %Index{} = index}) do
-    [
-      [
-        "DROP INDEX ",
-        quote_table(index.prefix, index.name)
-      ]
-    ]
-  end
-
-  def execute_ddl({:drop, %Index{} = index, _mode}) do
-    execute_ddl({:drop, index})
-  end
-
-  def execute_ddl({:drop_if_exists, %Index{} = index}) do
-    [
-      [
-        "DROP INDEX IF EXISTS ",
-        quote_table(index.prefix, index.name)
-      ]
-    ]
-  end
-
-  def execute_ddl({:drop_if_exists, %Index{} = index, _mode}) do
-    execute_ddl({:drop_if_exists, index})
   end
 
   def execute_ddl({:drop, %Constraint{}, _mode}) do
@@ -676,43 +646,6 @@ defmodule Ecto.Adapters.DuckDB.Connection do
 
   def execute_ddl({:drop_if_exists, %Constraint{}, _mode}) do
     raise ArgumentError, "DuckDB does not support ALTER TABLE DROP CONSTRAINT."
-  end
-
-  def execute_ddl({:rename, %Table{} = current_table, %Table{} = new_table}) do
-    [
-      [
-        "ALTER TABLE ",
-        quote_table(current_table.prefix, current_table.name),
-        " RENAME TO ",
-        quote_table(new_table.prefix, new_table.name)
-      ]
-    ]
-  end
-
-  def execute_ddl({:rename, %Table{} = table, current_column, new_column}) do
-    [
-      [
-        "ALTER TABLE ",
-        quote_table(table.prefix, table.name),
-        " RENAME COLUMN ",
-        quote_name(current_column),
-        " TO ",
-        quote_name(new_column)
-      ]
-    ]
-  end
-
-  def execute_ddl({:rename, %Index{} = index, new_index}) do
-    [
-      execute_ddl({:drop, index}),
-      execute_ddl({:create, %Index{index | name: new_index}})
-    ]
-  end
-
-  def execute_ddl(string) when is_binary(string), do: [string]
-
-  def execute_ddl(keyword) when is_list(keyword) do
-    raise ArgumentError, "DuckDB adapter does not support keyword lists in execute"
   end
 
   # Generate sequence creation and default value statements for serial/bigserial columns
@@ -867,7 +800,8 @@ defmodule Ecto.Adapters.DuckDB.Connection do
     /: " / ",
     and: " AND ",
     or: " OR ",
-    like: " LIKE "
+    like: " LIKE ",
+    ilike: " ILIKE "
   ]
 
   @binary_ops Keyword.keys(binary_ops)
@@ -1193,29 +1127,14 @@ defmodule Ecto.Adapters.DuckDB.Connection do
   end
 
   defp combinations(%{combinations: combinations}, as_prefix) do
-    Enum.map(combinations, &combination(&1, as_prefix))
-  end
-
-  defp combination({:union, query}, as_prefix), do: [" UNION ", all(query, as_prefix)]
-
-  defp combination({:union_all, query}, as_prefix),
-    do: [" UNION ALL ", all(query, as_prefix)]
-
-  defp combination({:except, query}, as_prefix), do: [" EXCEPT ", all(query, as_prefix)]
-
-  defp combination({:intersect, query}, as_prefix),
-    do: [" INTERSECT ", all(query, as_prefix)]
-
-  defp combination({:except_all, query}, _) do
-    raise Ecto.QueryError,
-      query: query,
-      message: "DuckDB does not support EXCEPT ALL"
-  end
-
-  defp combination({:intersect_all, query}, _) do
-    raise Ecto.QueryError,
-      query: query,
-      message: "DuckDB does not INTERSECT ALL"
+    Enum.map(combinations, fn
+      {:union, query} -> [" UNION (", all(query, as_prefix), ")"]
+      {:union_all, query} -> [" UNION ALL (", all(query, as_prefix), ")"]
+      {:except, query} -> [" EXCEPT (", all(query, as_prefix), ")"]
+      {:except_all, query} -> [" EXCEPT ALL (", all(query, as_prefix), ")"]
+      {:intersect, query} -> [" INTERSECT (", all(query, as_prefix), ")"]
+      {:intersect_all, query} -> [" INTERSECT ALL (", all(query, as_prefix), ")"]
+    end)
   end
 
   def lock(query, _sources) do
@@ -1444,12 +1363,6 @@ defmodule Ecto.Adapters.DuckDB.Connection do
       interval(count, interval, sources),
       ") AS TEXT)"
     ]
-  end
-
-  defp expr({:ilike, _, [_, _]}, _sources, query) do
-    raise Ecto.QueryError,
-      query: query,
-      message: "ilike is not supported by DuckDB"
   end
 
   defp expr({:over, _, [agg, name]}, sources, query) when is_atom(name) do
@@ -1980,8 +1893,9 @@ defmodule Ecto.Adapters.DuckDB.Connection do
 
   defp quote_table(nil, name), do: quote_entity(name)
 
-  defp quote_table(prefix, _name) when is_atom(prefix) or is_binary(prefix) do
-    raise ArgumentError, "DuckDB does not support table prefixes"
+  defp quote_table(prefix, name) when is_atom(prefix) or is_binary(prefix) do
+    # Support attached databases (e.g., DuckLake) with prefix.table_name syntax
+    [quote_entity(prefix), ?., quote_entity(name)]
   end
 
   defp quote_table(_, name), do: quote_entity(name)

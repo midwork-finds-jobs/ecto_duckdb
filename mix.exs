@@ -9,8 +9,8 @@ defmodule EctoDuckDB.MixProject do
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
-      source_url: "https://github.com/onnimonni/duckex",
-      homepage_url: "https://github.com/onnimonni/duckex",
+      source_url: "https://github.com/midwork-finds-jobs/ecto_duckdb",
+      homepage_url: "https://github.com/midwork-finds-jobs/ecto_duckdb",
       deps: deps(),
       package: package(),
       description: description(),
@@ -37,7 +37,7 @@ defmodule EctoDuckDB.MixProject do
       {:decimal, "~> 1.6 or ~> 2.0"},
       {:ecto_sql, "~> 3.13.0"},
       {:ecto, "~> 3.13.0"},
-      {:duckex, path: "../"},
+      {:duckex, github: "midwork-finds-jobs/duckex"},
       {:ex_doc, "~> 0.27", only: [:dev], runtime: false},
       {:jason, ">= 0.0.0", only: [:dev, :test, :docs]},
       {:temp, "~> 0.4", only: [:test]},
@@ -67,7 +67,7 @@ defmodule EctoDuckDB.MixProject do
       name: "ecto_duckdb",
       licenses: ["MIT"],
       links: %{
-        "GitHub" => "https://github.com/onnimonni/duckex",
+        "GitHub" => "https://github.com/midwork-finds-jobs/ecto_duckdb",
         "docs" => "https://hexdocs.pm/ecto_duckdb"
       }
     ]
@@ -77,7 +77,7 @@ defmodule EctoDuckDB.MixProject do
     [
       main: "Ecto.Adapters.DuckDB",
       source_ref: "v#{@version}",
-      source_url: "https://github.com/onnimonni/duckex"
+      source_url: "https://github.com/midwork-finds-jobs/ecto_duckdb"
     ]
   end
 
