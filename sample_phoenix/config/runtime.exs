@@ -7,6 +7,15 @@ import Config
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
 
+# Toggle debug logging with DEBUG environment variable
+# Usage: DEBUG=1 mix ecto.migrate    (enables debug logs)
+#        mix ecto.migrate             (info level, no debug logs)
+if System.get_env("DEBUG") in ["1", "true"] do
+  config :logger, level: :debug
+else
+  config :logger, level: :info
+end
+
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server

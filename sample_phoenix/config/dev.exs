@@ -8,7 +8,9 @@ config :sample_phoenix, SamplePhoenix.Repo,
   queue_target: 5000,
   queue_interval: 1000,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true
+  show_sensitive_data_on_connection_error: true,
+  # Disable query logging (set to false or :info/:warning/:error)
+  log: false
 
 # Configure DuckLake database (separate DuckDB instance for analytics/demo data)
 # Note: pool_size: 1 is REQUIRED because DuckDB only allows one writer at a time
@@ -30,6 +32,9 @@ config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
 
   # Disable migration locking as DuckLake doesn't support PRIMARY KEY on schema_migrations
   migration_lock: false,
+
+  # Disable query logging (set to false or :info/:warning/:error)
+  log: false,
 
   # Create secrets for WebDAV/S3 access
   secrets: [
@@ -131,6 +136,9 @@ config :sample_phoenix, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
+
+# Note: Logger level is configured in config/runtime.exs
+# Use DEBUG=1 to enable debug logs at runtime
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
