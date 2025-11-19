@@ -15,8 +15,10 @@ This project provides:
 - ✅ Full Ecto adapter implementation
 - ✅ DBConnection protocol using duckdbex (no Rust compilation required)
 - ✅ Support for migrations, transactions, and queries
+- ✅ **Multi-statement query support** via `exec!()` function
 - ✅ Type conversions (dates, timestamps, decimals, JSON, etc.)
-- ✅ Sample Phoenix project with working migrations
+- ✅ Advanced DuckDB features (secrets, attach, configs, USE)
+- ✅ Sample Phoenix project with DuckLake + WebDAV remote storage
 
 ## Installation
 
@@ -54,6 +56,47 @@ defmodule MyApp.Repo do
     adapter: Ecto.Adapters.DuckDBex
 end
 ```
+
+## Multi-Statement Query Support
+
+The adapter supports executing multi-statement queries that are not supported by standard prepared statements:
+
+```elixir
+defmodule MyApp.Repo do
+  use Ecto.Repo,
+    otp_app: :my_app,
+    adapter: Ecto.Adapters.DuckDBex
+
+  # Enable multi-statement query support
+  use Ecto.Adapters.DuckDBex.RawQuery
+end
+```
+
+Now you can use `exec!/1` to execute complex multi-statement queries:
+
+```elixir
+# Install and load extensions
+MyApp.Repo.exec!("""
+  INSTALL httpfs;
+  LOAD httpfs;
+  INSTALL parquet;
+  LOAD parquet;
+""")
+
+# Complex queries with CTEs
+MyApp.Repo.exec!("""
+  WITH data AS (
+    SELECT * FROM read_parquet('s3://bucket/file.parquet')
+  )
+  SELECT * FROM data WHERE condition = true;
+""")
+```
+
+This is useful for:
+- Installing and loading DuckDB extensions
+- Executing multiple DDL statements together
+- Complex queries with CTEs and WITH clauses
+- Queries that don't work with prepared statements
 
 ## Sample Phoenix Project
 
