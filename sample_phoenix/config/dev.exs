@@ -1,5 +1,16 @@
 import Config
 
+# Helper function to require environment variables
+require_env = fn var_name ->
+  System.get_env(var_name) ||
+    raise """
+    Environment variable #{var_name} is not set!
+
+    Please set it before running migrations or starting the server:
+    export #{var_name}="your_value"
+    """
+end
+
 # Configure your database (Regular DuckDB)
 config :sample_phoenix, SamplePhoenix.Repo,
   database: Path.expand("../sample_phoenix_dev.duckdb", __DIR__),
@@ -50,17 +61,12 @@ config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
 
   # Create secrets for WebDAV/S3 access
   secrets: [
-    {:hetzner_storagebox,
-     {
-       [
-         username: System.get_env("STORAGEBOX_USER"),
-         password: System.get_env("STORAGEBOX_PASSWORD")
-       ],
-       [
-         type: :webdav,
-         scope: "storagebox://#{System.get_env("STORAGEBOX_USER")}"
-       ]
-     }}
+    {:hetzner_storagebox, [
+      username: require_env.("STORAGEBOX_USER"),
+      password: require_env.("STORAGEBOX_PASSWORD"),
+      type: :webdav,
+      scope: "storagebox://#{require_env.("STORAGEBOX_USER")}"
+    ]}
   ],
 
   # Attach DuckLake databases
@@ -71,7 +77,7 @@ config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
       [
         as: :phoenix_db,
         options: [
-          DATA_PATH: "storagebox://#{System.get_env("STORAGEBOX_USER")}/phoenix_db"
+          DATA_PATH: "storagebox://#{require_env.("STORAGEBOX_USER")}/phoenix_db"
         ]
       ]
     }

@@ -323,11 +323,28 @@ defmodule Duckdbex.Protocol do
   end
 
   # Create a DuckDB secret
+  # Supports two formats:
+  # 1. Separate spec and opts: create_secret_direct!(conn, name, [username: "x", password: "y"], [type: :webdav, scope: "..."])
+  # 2. Combined single array: create_secret_direct!(conn, name, [username: "x", password: "y", type: :webdav, scope: "..."], [])
   defp create_secret_direct!(conn, name, spec, secret_opts) do
-    spec_sql = format_secret_options_inline(spec)
-    type = secret_opts[:type] || :s3
-    scope = if val = secret_opts[:scope], do: ", SCOPE '#{escape(val)}'", else: ""
-    persistent = if secret_opts[:persistent], do: "PERSISTENT ", else: ""
+    # Special keys that should be treated as secret options, not spec parameters
+    secret_option_keys = [:type, :scope, :persistent]
+
+    # If secret_opts is empty and spec contains secret option keys, split them
+    {final_spec, final_opts} =
+      if secret_opts == [] && Enum.any?(spec, fn {k, _v} -> k in secret_option_keys end) do
+        # Split spec into actual spec parameters and secret options
+        {spec_params, opts_params} = Enum.split_with(spec, fn {k, _v} -> k not in secret_option_keys end)
+        {spec_params, opts_params}
+      else
+        # Use as-is (original format with separate arrays)
+        {spec, secret_opts}
+      end
+
+    spec_sql = format_secret_options_inline(final_spec)
+    type = final_opts[:type] || :s3
+    scope = if val = final_opts[:scope], do: ", SCOPE '#{escape(val)}'", else: ""
+    persistent = if final_opts[:persistent], do: "PERSISTENT ", else: ""
 
     # Add comma between TYPE and spec_sql if spec_sql is not empty
     spec_part = if spec_sql != "", do: ", #{spec_sql}", else: ""
