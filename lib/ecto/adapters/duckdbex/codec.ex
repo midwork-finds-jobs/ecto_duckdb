@@ -40,7 +40,27 @@ defmodule Ecto.Adapters.DuckDBex.Codec do
 
   def utc_datetime_decode(nil), do: {:ok, nil}
 
-  def utc_datetime_decode(val) do
+  def utc_datetime_decode(%DateTime{} = val), do: {:ok, val}
+
+  def utc_datetime_decode({{year, month, day}, {hour, minute, second, microsecond}}) do
+    with {:ok, naive} <- NaiveDateTime.new(year, month, day, hour, minute, second, microsecond),
+         {:ok, dt} <- DateTime.from_naive(naive, "Etc/UTC") do
+      {:ok, dt}
+    else
+      _ -> :error
+    end
+  end
+
+  def utc_datetime_decode({{year, month, day}, {hour, minute, second}}) do
+    with {:ok, naive} <- NaiveDateTime.new(year, month, day, hour, minute, second, 0),
+         {:ok, dt} <- DateTime.from_naive(naive, "Etc/UTC") do
+      {:ok, dt}
+    else
+      _ -> :error
+    end
+  end
+
+  def utc_datetime_decode(val) when is_binary(val) do
     with {:ok, naive} <- NaiveDateTime.from_iso8601(val),
          {:ok, dt} <- DateTime.from_naive(naive, "Etc/UTC") do
       {:ok, dt}
@@ -49,14 +69,28 @@ defmodule Ecto.Adapters.DuckDBex.Codec do
     end
   end
 
+  def utc_datetime_decode(_), do: :error
+
   def naive_datetime_decode(nil), do: {:ok, nil}
 
-  def naive_datetime_decode(val) do
+  def naive_datetime_decode(%NaiveDateTime{} = val), do: {:ok, val}
+
+  def naive_datetime_decode({{year, month, day}, {hour, minute, second, microsecond}}) do
+    NaiveDateTime.new(year, month, day, hour, minute, second, microsecond)
+  end
+
+  def naive_datetime_decode({{year, month, day}, {hour, minute, second}}) do
+    NaiveDateTime.new(year, month, day, hour, minute, second, 0)
+  end
+
+  def naive_datetime_decode(val) when is_binary(val) do
     case NaiveDateTime.from_iso8601(val) do
       {:ok, dt} -> {:ok, dt}
       _ -> :error
     end
   end
+
+  def naive_datetime_decode(_), do: :error
 
   def date_decode(nil), do: {:ok, nil}
 
@@ -101,8 +135,8 @@ defmodule Ecto.Adapters.DuckDBex.Codec do
   def blob_encode(value), do: {:ok, {:blob, value}}
 
   def bool_encode(nil), do: {:ok, nil}
-  def bool_encode(false), do: {:ok, 0}
-  def bool_encode(true), do: {:ok, 1}
+  def bool_encode(false), do: {:ok, false}
+  def bool_encode(true), do: {:ok, true}
 
   def decimal_encode(nil), do: {:ok, nil}
 

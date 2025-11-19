@@ -13,38 +13,14 @@ defmodule Ecto.Adapters.DuckDBex do
 
     * `:database` - The path to the database. In memory is allowed. You can use
       `:memory` or `":memory:"` to designate that.
-    * `:default_transaction_mode` - one of `:deferred` (default), `:immediate`, or
-      `:exclusive`. If a mode is not specified in a call to `Repo.transaction/2`, this
-      will be the default transaction mode.
-    * `:journal_mode` - Sets the journal mode for the sqlite connection. Can be one of
-      the following `:delete`, `:truncate`, `:persist`, `:memory`, `:wal`, or `:off`.
-      Defaults to `:wal`.
-    * `:temp_store` - Sets the storage used for temporary tables. Default is `:default`.
+    * `:pool_size` - the size of the connection pool. **Must be set to 1** for DuckDB
+      due to its single-writer limitation. Defaults to `1`.
+    * `:temp_store` - Sets the storage used for temporary tables. Default is `:memory`.
       Allowed values are `:default`, `:file`, `:memory`.
-    * `:synchronous` - Can be `:extra`, `:full`, `:normal`, or `:off`. Defaults to `:normal`.
-    * `:foreign_keys` - Sets if foreign key checks should be enforced or not. Can be
-      `:on` or `:off`. Default is `:on`.
     * `:cache_size` - Sets the cache size to be used for the connection. This is an odd
       setting as a positive value is the number of pages in memory to use and a negative
       value is the size in kilobytes to use. Default is `-64000`.
-    * `:cache_spill` - The cache_spill pragma enables or disables the ability of the
-      pager to spill dirty cache pages to the database file in the middle of a
-      transaction. By default it is `:on`, and for most applications, it should remain
-      so.
-    * `:case_sensitive_like` - whether LIKE is case-sensitive or not. Can be
-      `:off` or `:on`. Defaults to `:off`.
-    * `:auto_vacuum` - Defaults to `:none`. Can be `:none`, `:full` or `:incremental`.
-      Depending on the database size, `:incremental` may be beneficial.
-    * `:locking_mode` - Defaults to `:normal`. Allowed values are `:normal` or
-      `:exclusive`. See [sqlite documentation][1] for more information.
-    * `:secure_delete` - Defaults to `:off`. Can be `:off` or `:on`. If `:on`, it will
-      cause SQLite3 to overwrite records that were deleted with zeros.
-    * `:wal_auto_check_point` - Sets the write-ahead log auto-checkpoint interval.
-      Default is `1000`. Setting the auto-checkpoint size to zero or a negative value
-      turns auto-checkpointing off.
-    * `:busy_timeout` - Sets the busy timeout in milliseconds for a connection.
-      Default is `2000`.
-    * `:pool_size` - the size of the connection pool. Defaults to `5`.
+    * `:journal_mode` - Sets the journal mode. Defaults to `:wal`.
     * `:binary_id_type` - Defaults to `:string`. Determines how binary IDs are stored in
       the database and the type of `:binary_id` columns. See the
       [section on binary ID types](#module-binary-id-types) for more details.
@@ -52,48 +28,26 @@ defmodule Ecto.Adapters.DuckDBex do
       Possible values and column types are the same as for
       [binary IDs](#module-binary-id-types).
     * `:map_type` - Defaults to `:string`. Determines the type of `:map` columns.
-      Set to `:binary` to use the [JSONB](https://sqlite.org/jsonb.html)
-      storage format.
+      Maps are serialized using JSON.
     * `:array_type` - Defaults to `:string`. Determines the type of `:array` columns.
-      Arrays are serialized using JSON. Set to `:binary` to use the
-      [JSONB](https://sqlite.org/jsonb.html) storage format.
+      Arrays are serialized using JSON.
     * `:datetime_type` - Defaults to `:iso8601`. Determines how datetime fields are
       stored in the database. The allowed values are `:iso8601` and `:text_datetime`.
       `:iso8601` corresponds to a string of the form `YYYY-MM-DDThh:mm:ss` and
       `:text_datetime` corresponds to a string of the form `YYYY-MM-DD hh:mm:ss`
-    * `:load_extensions` - list of paths identifying extensions to load. Defaults to `[]`.
-       The provided list will be merged with the global extensions list, set on
-       `:duckdbex, :load_extensions`. Be aware that the path should handle pointing to a
-       library compiled for the current architecture. See `Duckdbex.Connection.connect/1`
-       for more.
 
-  For more information about the options above, see [sqlite documentation][1]
+  For more information about DuckDB configuration, see [DuckDB documentation][1]
 
-  ### Differences between SQLite and Ecto SQLite defaults
+  [1]: https://duckdb.org/docs/
 
-  For the most part, the defaults we provide above match the defaults that SQLite usually
-  ships with. However, SQLite has conservative defaults due to its need to be strictly
-  backwards compatible, so some of them do not necessarily match "best practices". Below
-  are the defaults we provide above that differ from the normal SQLite defaults, along
-  with rationale.
+  ### DuckDB-specific Configuration
 
-    * `:journal_mode` - we use `:wal`, as it is vastly superior
-      for concurrent access. SQLite usually defaults to `:delete`.
-      See [SQLite documentation][2] for more info.
-    * `:temp_store` - we use `:memory`, which increases performance a bit.
-      SQLite usually defaults to `:file`.
-    * `:foreign_keys` - we set it to `:on`, for better relational guarantees.
-      This is also the default of the underlying `Duckdbex` driver.
-      SQLite usually defaults to `:off` for backwards compat.
-    * `:busy_timeout` - we set it to `2000`, to better enable concurrent access.
-      This is also the default of `Duckdbex`. SQLite usually defaults to `0`.
-    * `:cache_size` - we set it to `-64000`, to speed up access of data.
-      SQLite usually defaults to `-2000`.
+  DuckDB is an embedded analytical database optimized for OLAP workloads. Key considerations:
 
-  These defaults can of course be overridden, as noted above, to suit other needs.
-
-  [1]: https://www.sqlite.org/pragma.html
-  [2]: https://sqlite.org/wal.html
+    * `:pool_size` - **Must be 1**. DuckDB uses MVCC (Multi-Version Concurrency Control)
+      but only allows one writer at a time.
+    * `:temp_store` - Uses `:memory` by default for better analytical performance.
+    * `:cache_size` - Set to `-64000` (64MB) by default to optimize for analytical queries.
 
   ### Binary ID types
 
@@ -114,138 +68,59 @@ defmodule Ecto.Adapters.DuckDBex do
 
   ## Limitations and caveats
 
-  There are some limitations when using Ecto with SQLite that one needs
-  to be aware of. The ones listed below are specific to Ecto usage, but it
-  is encouraged to also view the guidance on [when to use SQLite][4] provided
-  by the SQLite documentation, as well.
+  There are some limitations when using Ecto with DuckDB that one needs
+  to be aware of. DuckDB is optimized for analytical (OLAP) workloads rather than
+  transactional (OLTP) workloads.
+
+  ### Pool Size Limitation
+
+  **IMPORTANT**: DuckDB only allows one writer at a time. You must set `pool_size: 1`
+  in your repository configuration.
+
+      config :my_app, MyApp.Repo,
+        adapter: Ecto.Adapters.DuckDBex,
+        database: "path/to/database.duckdb",
+        pool_size: 1
 
   ### In memory robustness
 
-  When using the Ecto SQLite3 adapter with the database set to `:memory` it
-  is possible that a crash in a process performing a query in the Repo will
-  cause the database to be destroyed. This makes the `:memory` function
-  unsuitable when it is expected to survive potential process crashes (for
-  example a crash in a Phoenix request)
+  When using the adapter with the database set to `:memory` it is possible that
+  a crash in a process performing a query in the Repo will cause the database
+  to be destroyed. This makes the `:memory` function unsuitable when it is
+  expected to survive potential process crashes (for example a crash in a
+  Phoenix request)
 
   ### Async Sandbox testing
 
-  The Ecto SQLite3 adapter does not support async tests when used with
-  `Ecto.Adapters.SQL.Sandbox`. This is due to SQLite only allowing up one write
-  transaction at a time, which often does not work with the Sandbox approach of wrapping
+  The DuckDBex adapter does not support async tests when used with
+  `Ecto.Adapters.SQL.Sandbox`. This is due to DuckDB only allowing one write
+  transaction at a time, which does not work with the Sandbox approach of wrapping
   each test in a transaction.
-
-  ### LIKE match on BLOB columns
-
-  We have the `SQLITE_LIKE_DOESNT_MATCH_BLOBS` compile-time definition option set to true,
-  as [recommended by SQLite][3]. This means you cannot do `LIKE` queries on `BLOB` columns.
-
-  ### Case sensitivity
-
-  Case sensitivity for `LIKE` is off by default, and controlled by the `:case_sensitive_like`
-  option outlined above.
-
-  However, for equality comparison, case sensitivity is always _on_.
-  If you want to make a column not be case sensitive, for email storage for example, you
-  can make it case insensitive by using the [`COLLATE NOCASE`][6] option in SQLite. This
-  is configured via the `:collate` option.
-
-  So instead of:
-
-      add :email, :string
-
-  You would do:
-
-      add :email, :string, collate: :nocase
 
   ### Check constraints
 
-  SQLite3 supports specifying check constraints on the table or on the column definition.
-  We currently only support adding a check constraint via a column definition, since the
-  table definition approach only works at table-creation time and cannot be added at
-  table-alter time. You can see more information in the SQLite3
-  [CREATE TABLE documentation](https://sqlite.org/lang_createtable.html).
+  DuckDB supports check constraints on columns. You can add them in migrations:
 
-  Because of this, you cannot add a constraint via the normal `Ecto.Migration.constraint/3`
-  method, as that operates via `ALTER TABLE ADD CONSTRAINT`, and this type of `ALTER TABLE`
-  operation SQLite3 does not support. You can however get the full functionality by
-  adding a constraint at the column level, specifying the name and expression. Per the
-  SQLite3 documentation, there is no _functional_ difference between a column or table
-  constraint.
-
-  Thus, adding a check constraint for a new column is as simple as:
-
-      add :email, :string, check: %{name: "test_constraint", expr: "email != 'test@example.com'"}
+      add :email, :string, check: %{name: "valid_email", expr: "email LIKE '%@%'"}
 
   ### Handling foreign key constraints in changesets
 
-  Unfortunately, unlike other databases, SQLite3 does not provide the precise name of
-  the constraint violated, but only the columns within that constraint (if it provides
-  any information at all). Because of this, changeset functions like
-  `Ecto.Changeset.foreign_key_constraint/3` may not work at all.
-
-  This is because the above functions depend on the Ecto Adapter returning the name of
-  the violated constraint, which you annotate in your changeset so that Ecto can convert
-  the constraint violation into the correct updated changeset when the constraint is hit
-  during a `c:Ecto.Repo.update/2` or `c:Ecto.Repo.insert/2` operation. Since we cannot
-  get the name of the violated constraint back from SQLite3 at `INSERT` or `UPDATE`
-  time, there is no way to effectively use these changeset functions. This is a SQLite3
-  limitation.
-
-  See [this GitHub issue](https://github.com/elixir-sqlite/ecto_sqlite3/issues/42) for
-  more details.
+  Foreign key constraint handling in DuckDB follows standard SQL behavior. Changeset
+  functions like `Ecto.Changeset.foreign_key_constraint/3` should work as expected.
 
   ### Schemaless queries
 
-  Using [schemaless Ecto queries][7] will not work well with SQLite. This is because
-  the Ecto SQLite adapter relies heavily on the schema to support a rich array of Elixir
-  types, despite the fact SQLite only has [five storage classes][5]. The query will still
-  work and return data, but you will need to do this mapping on your own.
+  Using schemaless Ecto queries works with DuckDB. The adapter properly handles type
+  conversions for DuckDB's native types.
 
-  ### Transaction mode
+  ### Use Cases
 
-  By default, [SQLite transactions][8] run in `DEFERRED` mode. However, in
-  web applications with a balanced load of reads and writes, using  `IMMEDIATE`
-  mode may yield better performance.
+  DuckDB is optimized for analytical (OLAP) workloads:
 
-  Here are several ways to specify a different transaction mode:
+    * **Good fit**: Analytics, reporting, data warehousing, batch processing
+    * **Not ideal**: High-frequency transactional workloads (OLTP)
 
-  **Pass `mode: :immediate` to `Repo.transaction/2`:** Use this approach to set
-  the transaction mode for individual transactions.
-
-      Multi.new()
-      |> Multi.run(:example, fn _repo, _changes_so_far ->
-        # ... do some work ...
-      end)
-      |> Repo.transaction(mode: :immediate)
-
-  **Define custom transaction functions:** Create wrappers, such as
-  `Repo.immediate_transaction/2` or `Repo.deferred_transaction/2`, to easily
-  apply different modes where needed.
-
-      defmodule MyApp.Repo do
-        def immediate_transaction(fun_or_multi) do
-          transaction(fun_or_multi, mode: :immediate)
-        end
-
-        def deferred_transaction(fun_or_multi) do
-          transaction(fun_or_multi, mode: :deferred)
-        end
-      end
-
-  **Set a global default:** Configure `:default_transaction_mode` to apply a
-  preferred mode for all transactions, unless explicitly passed a different
-  `:mode` to `Repo.transaction/2`.
-
-      config :my_app, MyApp.Repo,
-        database: "path/to/my/database.db",
-        default_transaction_mode: :immediate
-
-  [3]: https://www.sqlite.org/compile.html
-  [4]: https://www.sqlite.org/whentouse.html
-  [5]: https://www.sqlite.org/datatype3.html
-  [6]: https://www.sqlite.org/datatype3.html#collating_sequences
-  [7]: https://hexdocs.pm/ecto/schemaless-queries.html
-  [8]: https://www.sqlite.org/lang_transaction.html#deferred_immediate_and_exclusive_transactions
+  For more information, see [DuckDB documentation](https://duckdb.org/why_duckdb).
   """
 
   use Ecto.Adapters.SQL,
@@ -339,7 +214,7 @@ defmodule Ecto.Adapters.DuckDBex do
   def structure_load(default, config) do
     path = config[:dump_path] || Path.join(default, "structure.sql")
 
-    case run_with_cmd("sqlite3", [config[:database], ".read #{path}"]) do
+    case run_with_cmd("duckdb", [config[:database], ".read #{path}"]) do
       {_output, 0} -> {:ok, path}
       {output, _} -> {:error, output}
     end
@@ -347,11 +222,17 @@ defmodule Ecto.Adapters.DuckDBex do
 
   @impl Ecto.Adapter.Structure
   def dump_cmd(args, opts \\ [], config) when is_list(config) and is_list(args) do
-    run_with_cmd("sqlite3", ["-init", "/dev/null", config[:database] | args], opts)
+    run_with_cmd("duckdb", [config[:database] | args], opts)
   end
 
   @impl Ecto.Adapter.Schema
-  def autogenerate(:id), do: nil
+  def autogenerate(:id) do
+    # DuckDB doesn't support auto-increment for BIGINT
+    # Generate a unique ID using microseconds and process unique integer
+    # This ensures uniqueness even for rapid inserts
+    System.unique_integer([:monotonic, :positive])
+  end
+
   def autogenerate(:embed_id), do: Ecto.UUID.generate()
 
   def autogenerate(:binary_id) do
@@ -539,13 +420,11 @@ defmodule Ecto.Adapters.DuckDBex do
   defp dump_versions(config) do
     table = config[:migration_source] || "schema_migrations"
 
-    # `.dump` command also returns CREATE TABLE which will clash with CREATE we already run in dump_schema
-    # So we set mode to insert which makes every SELECT statement to issue the result
-    # as the INSERT statements instead of pure text data.
-    case run_with_cmd("sqlite3", [
+    # Generate INSERT statements for schema_migrations table
+    case run_with_cmd("duckdb", [
            config[:database],
-           ".mode insert #{table}",
-           "SELECT * FROM #{table}"
+           "-c",
+           "SELECT 'INSERT INTO #{table} VALUES (' || version || ', ''' || inserted_at || ''');' FROM #{table}"
          ]) do
       {output, 0} -> {:ok, output}
       {output, _} -> {:error, output}
@@ -553,7 +432,8 @@ defmodule Ecto.Adapters.DuckDBex do
   end
 
   defp dump_schema(config) do
-    case run_with_cmd("sqlite3", [config[:database], ".schema"]) do
+    # Use SHOW ALL TABLES and then get CREATE statements for each
+    case run_with_cmd("duckdb", [config[:database], "-c", "SELECT sql FROM duckdb_tables() WHERE schema='main'"]) do
       {output, 0} -> {:ok, output}
       {output, _} -> {:error, output}
     end

@@ -189,28 +189,6 @@ defmodule Duckdbex.Protocol do
       {:error, %Duckdbex.Error{message: "#{kind}: #{inspect(reason)}"}}
   end
 
-  defp execute_query_direct(conn, sql, params) do
-    result = if params == [] do
-      Duckdbex.query(conn, sql)
-    else
-      Duckdbex.query(conn, sql, params)
-    end
-
-    case result do
-      {:ok, result_ref} ->
-        rows = Duckdbex.fetch_all(result_ref)
-        columns = extract_columns(result_ref)
-        Duckdbex.release(result_ref)
-        {:ok, %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}}
-
-      {:error, _} = error ->
-        error
-    end
-  catch
-    kind, reason ->
-      {:error, %Duckdbex.Error{message: "#{kind}: #{inspect(reason)}"}}
-  end
-
   defp extract_columns(_result_ref) do
     # Duckdbex doesn't provide easy column name extraction in current API
     # We'll return empty for now and rely on Ecto's schema information
