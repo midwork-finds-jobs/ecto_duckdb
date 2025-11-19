@@ -38,6 +38,7 @@ ecto_duckdbex-*.tar
 *.duckdb.wal
 *.duckdb-shm
 *.ducklake
+*.ducklake.files/*
 
 # Ignore Elixir LS files
 /.elixir_ls/
