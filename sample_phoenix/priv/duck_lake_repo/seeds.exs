@@ -6,47 +6,45 @@
 
 alias SamplePhoenix.DuckLakeRepo
 
-IO.puts("Installing extensions...")
-DuckLakeRepo.query!("INSTALL httpfs")
-DuckLakeRepo.query!("LOAD httpfs")
-DuckLakeRepo.query!("INSTALL netquack FROM community")
-DuckLakeRepo.query!("LOAD netquack")
-
 IO.puts("Fetching job URLs from Common Crawl and inserting into DuckLake...")
 IO.puts("This may take a minute as it queries remote data sources...")
 
-# TODO: DuckLake doesn't yet support macros so we can't DRY these queries
-# Split into two separate MERGE queries to avoid multi-statement issues
-DuckLakeRepo.query!("""
-  MERGE INTO jobs
-    USING (
-      SELECT DISTINCT('https://' || extract_host(url) || extract_path(url)) as url
-      FROM read_json(
-          format(
-            'https://index.commoncrawl.org/CC-MAIN-2025-43-index?url={}&output=json',
-            url_encode('https://jobs.eu.lever.co/*')
-          )
-      )
-    ) AS eu_jobs
-    ON (eu_jobs.url = jobs.url)
-    WHEN NOT MATCHED THEN INSERT
-""")
+# Note: Using exec! for multi-statement queries that would fail with query!
+# DuckLake doesn't yet support macros so we can't DRY the 2 queries here yet
+DuckLakeRepo.exec!("""
+  INSTALL httpfs;
+  LOAD httpfs;
 
-DuckLakeRepo.query!("""
+  INSTALL netquack FROM community;
+  LOAD netquack;
+
+  WITH eu_jobs AS (
+    SELECT DISTINCT('https://' || extract_host(url) || extract_path(url)) as url
+    FROM read_json(
+        format(
+          'https://index.commoncrawl.org/CC-MAIN-2025-43-index?url={}&output=json',
+          url_encode('https://jobs.eu.lever.co/*')
+        )
+    )
+  ), non_eu_jobs AS (
+    SELECT DISTINCT('https://' || extract_host(url) || extract_path(url)) as url
+    FROM read_json(
+        format(
+          'https://index.commoncrawl.org/CC-MAIN-2025-43-index?url={}&output=json',
+          url_encode('https://jobs.lever.co/*')
+        )
+    )
+  )
   MERGE INTO jobs
     USING (
-      SELECT DISTINCT('https://' || extract_host(url) || extract_path(url)) as url
-      FROM read_json(
-          format(
-            'https://index.commoncrawl.org/CC-MAIN-2025-43-index?url={}&output=json',
-            url_encode('https://jobs.lever.co/*')
-          )
-      )
-    ) AS non_eu_jobs
-    ON (non_eu_jobs.url = jobs.url)
-    WHEN NOT MATCHED THEN INSERT
+        FROM eu_jobs
+        UNION ALL
+        FROM non_eu_jobs
+    ) AS upserts
+    ON (upserts.url = jobs.url)
+    WHEN NOT MATCHED THEN INSERT;
 """)
 
 {:ok, count_result} = DuckLakeRepo.query("SELECT COUNT(*) as count FROM jobs")
 [[count]] = count_result.rows
-IO.puts("✅ Seeding complete! Inserted #{count} job URLs into DuckLake database.")
+IO.puts("✅ Seeding complete! #{count} total job URLs in DuckLake database.")

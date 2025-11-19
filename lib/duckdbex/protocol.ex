@@ -143,16 +143,38 @@ defmodule Duckdbex.Protocol do
 
   @impl true
   def handle_execute(query, params, _opts, %{cache: cache} = state) do
-    Logger.debug("Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}")
+    # Check if this is a raw multi-statement query
+    if is_map(query) and Map.has_key?(query, :__struct__) and
+         query.__struct__ == Ecto.Adapters.DuckDBex.RawQuery.RawQuery do
+      # Execute raw multi-statement query bypassing prepared statements
+      Logger.debug("Executing raw multi-statement query")
 
-    case execute_query(state.conn, query.stmt, params, cache) do
-      {:ok, result} ->
-        Logger.debug("Execute successful")
-        {:ok, query, result, state}
+      case Duckdbex.query(state.conn, query.sql) do
+        {:ok, result_ref} ->
+          rows = Duckdbex.fetch_all(result_ref)
+          columns = extract_columns(result_ref)
+          Duckdbex.release(result_ref)
+          result = %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}
+          Logger.debug("Raw query successful")
+          {:ok, query, result, state}
 
-      {:error, err} ->
-        Logger.error("Execute error: #{inspect(err)}")
-        {:error, err, state}
+        {:error, err} ->
+          Logger.error("Raw query error: #{inspect(err)}")
+          {:error, err, state}
+      end
+    else
+      # Standard prepared statement execution
+      Logger.debug("Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}")
+
+      case execute_query(state.conn, query.stmt, params, cache) do
+        {:ok, result} ->
+          Logger.debug("Execute successful")
+          {:ok, query, result, state}
+
+        {:error, err} ->
+          Logger.error("Execute error: #{inspect(err)}")
+          {:error, err, state}
+      end
     end
   end
 
