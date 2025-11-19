@@ -7,7 +7,7 @@
 
 ## Test Steps
 
-#### 1. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 cd ecto_duckdb
@@ -36,12 +36,14 @@ mix ecto.migrate
 ```
 
 This will run three migrations:
+
 - `20251027193450_create_posts.exs` - Creates posts table
 - `20251028071818_create_users.exs` - Creates users table
 - `20251028072213_test_native_datetime_types.exs` - Tests datetime types
 
 Expected output:
-```
+
+```sh
 [info] == Running ... SamplePhoenix.Repo.Migrations.CreatePosts.change/0 forward
 [info] create table posts
 [info] == Migrated ... in 0.0s
@@ -59,6 +61,7 @@ D SELECT table_name FROM information_schema.tables WHERE table_schema='main';
 ```
 
 Expected tables:
+
 - `posts`
 - `users`
 - `schema_migrations`
@@ -113,6 +116,7 @@ DuckDB has specific transaction isolation characteristics. Test concurrent trans
 ### Error: "database is locked"
 
 This usually means:
+
 1. Another process has the database open
 2. Pool size is > 1 (should be 1 for DuckDB)
 

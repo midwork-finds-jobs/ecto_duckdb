@@ -100,10 +100,10 @@ config :my_app, MyApp.Repo,
   secrets: [
     # Simple format with all parameters in one array
     {:my_s3_secret, [
-      key_id: "AKIAIOSFODNN7EXAMPLE",
-      secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      type: :s3,
-      region: "us-east-1"
+      key_id: System.get_env("AWS_ACCESS_KEY_ID"),
+        secret: System.get_env("AWS_SECRET_ACCESS_KEY"),
+        type: :s3,
+        region: "us-east-1"
     ]},
 
     # WebDAV secret for services like Hetzner Storagebox
@@ -117,6 +117,7 @@ config :my_app, MyApp.Repo,
 ```
 
 **Secret Options:**
+
 - `type` - Secret type (`:s3`, `:webdav`, etc.)
 - `scope` - URL scope where the secret applies
 - `persistent` - Make secret persistent across sessions (default: `false`)
@@ -300,6 +301,7 @@ MyApp.Repo.exec!("""
 ```
 
 This is useful for:
+
 - Executing multiple DDL statements together
 - Complex queries with CTEs and WITH clauses
 - Queries that don't work with prepared statements
@@ -319,7 +321,7 @@ This will create a DuckDB database and run migrations to create tables.
 
 ## Architecture
 
-```
+```sh
 lib/
 ├── duckdbex/
 │   ├── protocol.ex       # DBConnection implementation
