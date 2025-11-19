@@ -382,7 +382,16 @@ defmodule Duckdbex.Protocol do
         :ok
 
       {:error, reason} ->
-        raise Duckdbex.Error, message: "Failed to create secret #{name}: #{inspect(reason)}"
+        error_msg = """
+        Failed to create secret '#{name}': #{inspect(reason)}
+
+        Troubleshooting:
+        - Verify secret type is valid (:s3, :webdav, etc.)
+        - Check scope format (e.g., 's3://bucket' or 'webdav://host')
+        - Ensure required extensions are installed (webdavfs for WebDAV)
+        - Verify credentials are correct
+        """
+        raise Duckdbex.Error, message: error_msg
     end
   end
 
@@ -405,7 +414,17 @@ defmodule Duckdbex.Protocol do
         :ok
 
       {:error, reason} ->
-        raise Duckdbex.Error, message: "Failed to attach database #{path}: #{inspect(reason)}"
+        error_msg = """
+        Failed to attach database '#{path}': #{inspect(reason)}
+
+        Troubleshooting:
+        - Verify the database file/path exists
+        - Check if using DuckLake format (ducklake:path.ducklake)
+        - Ensure secrets are configured for remote storage
+        - Verify DATA_PATH option is correct if using remote storage
+        - Check file permissions
+        """
+        raise Duckdbex.Error, message: error_msg
     end
   end
 
@@ -433,7 +452,16 @@ defmodule Duckdbex.Protocol do
         :ok
 
       {:error, reason} ->
-        raise Duckdbex.Error, message: "Failed to set config #{db_name}.#{option_str}: #{inspect(reason)}"
+        error_msg = """
+        Failed to set config '#{db_name}.#{option_str}': #{inspect(reason)}
+
+        Troubleshooting:
+        - Verify database '#{db_name}' is attached
+        - Check if option name '#{option_str}' is valid for this database type
+        - Ensure option value type is correct (string, number, atom)
+        - Verify the database supports configuration changes
+        """
+        raise Duckdbex.Error, message: error_msg
     end
   end
 
@@ -524,14 +552,32 @@ defmodule Duckdbex.Protocol do
               :ok
 
             {:error, reason} ->
-              raise Duckdbex.Error, message: "Failed to load extension #{name}: #{inspect(reason)}"
+              error_msg = """
+              Failed to load extension '#{name}': #{inspect(reason)}
+
+              Troubleshooting:
+              - Extension was installed but failed to load
+              - Check if extension is compatible with your DuckDB version
+              - Verify extension binary is not corrupted
+              """
+              raise Duckdbex.Error, message: error_msg
           end
         else
           :ok
         end
 
       {:error, reason} ->
-        raise Duckdbex.Error, message: "Failed to install extension #{name}: #{inspect(reason)}"
+        error_msg = """
+        Failed to install extension '#{name}': #{inspect(reason)}
+
+        Troubleshooting:
+        - Verify extension name is correct
+        - Check network connection if downloading from repository
+        - Ensure source is valid (:default, :core, :nightly, :community, or URL)
+        - Try with :force option to reinstall
+        - Check DuckDB extension compatibility
+        """
+        raise Duckdbex.Error, message: error_msg
     end
   end
 end

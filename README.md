@@ -84,6 +84,154 @@ config :my_app, MyApp.Repo,
 
 Extensions are installed during connection initialization, before any queries are executed.
 
+### Advanced DuckDB Features
+
+The adapter supports advanced DuckDB features for working with remote storage, multiple databases, and custom configurations:
+
+#### Secrets
+
+Create DuckDB secrets for accessing remote storage (S3, WebDAV, etc.):
+
+```elixir
+config :my_app, MyApp.Repo,
+  adapter: Ecto.Adapters.DuckDBex,
+  database: "path/to/database.duckdb",
+  pool_size: 1,
+
+  secrets: [
+    # Simple format with all parameters in one array
+    {:my_s3_secret, [
+      key_id: "AKIAIOSFODNN7EXAMPLE",
+      secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      type: :s3,
+      region: "us-east-1"
+    ]},
+
+    # WebDAV secret for services like Hetzner Storagebox
+    {:webdav_secret, [
+      username: System.get_env("WEBDAV_USER"),
+      password: System.get_env("WEBDAV_PASSWORD"),
+      type: :webdav,
+      scope: "webdav://example.com"
+    ]}
+  ]
+```
+
+**Secret Options:**
+- `type` - Secret type (`:s3`, `:webdav`, etc.)
+- `scope` - URL scope where the secret applies
+- `persistent` - Make secret persistent across sessions (default: `false`)
+
+#### Attach Databases
+
+Attach additional DuckDB or DuckLake databases:
+
+```elixir
+config :my_app, MyApp.Repo,
+  adapter: Ecto.Adapters.DuckDBex,
+  database: "path/to/database.duckdb",
+  pool_size: 1,
+
+  attach: [
+    # Attach DuckLake with remote storage
+    {"ducklake:analytics.ducklake", [
+      as: :analytics_db,
+      options: [
+        DATA_PATH: "s3://my-bucket/analytics"
+      ]
+    ]},
+
+    # Attach regular DuckDB database
+    {"path/to/other.duckdb", [
+      as: :other_db
+    ]}
+  ]
+```
+
+#### Database Configurations
+
+Set database-specific configuration options:
+
+```elixir
+config :my_app, MyApp.Repo,
+  adapter: Ecto.Adapters.DuckDBex,
+  database: "path/to/database.duckdb",
+  pool_size: 1,
+
+  configs: [
+    analytics_db: [
+      data_inlining_row_limit: 10000,
+      parquet_compression: :zstd,
+      parquet_compression_level: 20,
+      parquet_version: 2
+    ]
+  ]
+```
+
+#### USE Statement
+
+Switch to a specific attached database as the default:
+
+```elixir
+config :my_app, MyApp.Repo,
+  adapter: Ecto.Adapters.DuckDBex,
+  database: "path/to/database.duckdb",
+  pool_size: 1,
+
+  # Switch to attached database
+  use: :analytics_db
+```
+
+All tables created by migrations will be created in the specified database.
+
+#### Complete Example
+
+Here's a complete example using all advanced features together:
+
+```elixir
+config :my_app, MyApp.Repo,
+  adapter: Ecto.Adapters.DuckDBex,
+  database: "local.duckdb",
+  pool_size: 1,
+
+  # 1. Install required extensions
+  extensions: [
+    :httpfs,
+    {:webdavfs, source: :community}
+  ],
+
+  # 2. Create secrets for remote access
+  secrets: [
+    {:storage_secret, [
+      username: System.get_env("STORAGE_USER"),
+      password: System.get_env("STORAGE_PASSWORD"),
+      type: :webdav,
+      scope: "webdav://storage.example.com"
+    ]}
+  ],
+
+  # 3. Attach DuckLake with remote storage
+  attach: [
+    {"ducklake:analytics.ducklake", [
+      as: :analytics,
+      options: [
+        DATA_PATH: "webdav://storage.example.com/analytics"
+      ]
+    ]}
+  ],
+
+  # 4. Configure database settings
+  configs: [
+    analytics: [
+      parquet_compression: :zstd,
+      parquet_compression_level: 20
+    ]
+  ],
+
+  # 5. Use attached database as default
+  use: :analytics
+```
+
 Define your repository:
 
 ```elixir
