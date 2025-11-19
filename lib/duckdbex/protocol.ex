@@ -80,9 +80,9 @@ defmodule Duckdbex.Protocol do
   end
 
   @impl true
-  def handle_declare(query, params, _opts, %{} = state) do
+  def handle_declare(query, params, _opts, %{cache: cache} = state) do
     # For cursors, we execute and return a cursor identifier
-    case execute_query(state.conn, query.stmt, params) do
+    case execute_query(state.conn, query.stmt, params, cache) do
       {:ok, result} ->
         cursor = make_ref()
         {:ok, query, %{result | cursor: cursor}, state}
@@ -93,10 +93,10 @@ defmodule Duckdbex.Protocol do
   end
 
   @impl true
-  def handle_execute(query, params, _opts, %{} = state) do
+  def handle_execute(query, params, _opts, %{cache: cache} = state) do
     Logger.debug("Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}")
 
-    case execute_query(state.conn, query.stmt, params) do
+    case execute_query(state.conn, query.stmt, params, cache) do
       {:ok, result} ->
         Logger.debug("Execute successful")
         {:ok, query, result, state}
@@ -119,10 +119,10 @@ defmodule Duckdbex.Protocol do
 
     case Duckdbex.prepare_statement(state.conn, query.query) do
       {:ok, stmt_ref} ->
-        stmt_id = :erlang.ref_to_list(stmt_ref) |> to_string()
-        new_cache = Map.put(cache, stmt_id, stmt_ref)
-        Logger.debug("Query prepared with stmt_id: #{stmt_id}")
-        {:ok, %{query | stmt: stmt_id}, %{state | cache: new_cache}}
+        # Use the reference itself as the cache key
+        new_cache = Map.put(cache, stmt_ref, stmt_ref)
+        Logger.debug("Query prepared with stmt_ref: #{inspect(stmt_ref)}")
+        {:ok, %{query | stmt: stmt_ref}, %{state | cache: new_cache}}
 
       {:error, err} ->
         Logger.error("Prepare error: #{inspect(err)}")
@@ -153,46 +153,59 @@ defmodule Duckdbex.Protocol do
   # Private helper functions
 
   defp execute_simple(conn, sql) do
-    {:ok, result_ref} = Duckdbex.query(conn, sql)
-    {:ok, rows} = Duckdbex.fetch_all(result_ref)
-    Duckdbex.release(result_ref)
+    case Duckdbex.query(conn, sql) do
+      {:ok, result_ref} ->
+        rows = Duckdbex.fetch_all(result_ref)
+        Duckdbex.release(result_ref)
+        {:ok, %Result{rows: rows || [], columns: []}}
 
-    {:ok, %Result{rows: rows || [], columns: []}}
+      {:error, _} = error ->
+        error
+    end
   catch
     kind, reason ->
       {:error, %Duckdbex.Error{message: "#{kind}: #{inspect(reason)}"}}
   end
 
-  defp execute_query(conn, stmt_id, params) when is_binary(stmt_id) do
-    # stmt_id is actually a reference string, need to look it up
-    # For now, we'll execute the query directly if we don't have cached statement
-    execute_query_direct(conn, stmt_id, params)
-  end
+  defp execute_query(_conn, stmt_ref, params, _cache) when is_reference(stmt_ref) do
+    result = if params == [] do
+      Duckdbex.execute_statement(stmt_ref)
+    else
+      Duckdbex.execute_statement(stmt_ref, params)
+    end
 
-  defp execute_query(conn, stmt_ref, params) when is_reference(stmt_ref) do
-    {:ok, result_ref} = Duckdbex.execute_statement(stmt_ref, params)
-    {:ok, rows} = Duckdbex.fetch_all(result_ref)
+    case result do
+      {:ok, result_ref} ->
+        rows = Duckdbex.fetch_all(result_ref)
+        columns = extract_columns(result_ref)
+        Duckdbex.release(result_ref)
+        {:ok, %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}}
 
-    # Extract column names from result metadata if available
-    columns = extract_columns(result_ref)
-
-    Duckdbex.release(result_ref)
-
-    {:ok, %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}}
+      {:error, _} = error ->
+        error
+    end
   catch
     kind, reason ->
       {:error, %Duckdbex.Error{message: "#{kind}: #{inspect(reason)}"}}
   end
 
   defp execute_query_direct(conn, sql, params) do
-    {:ok, result_ref} = Duckdbex.query(conn, sql, params)
-    {:ok, rows} = Duckdbex.fetch_all(result_ref)
+    result = if params == [] do
+      Duckdbex.query(conn, sql)
+    else
+      Duckdbex.query(conn, sql, params)
+    end
 
-    columns = extract_columns(result_ref)
+    case result do
+      {:ok, result_ref} ->
+        rows = Duckdbex.fetch_all(result_ref)
+        columns = extract_columns(result_ref)
+        Duckdbex.release(result_ref)
+        {:ok, %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}}
 
-    Duckdbex.release(result_ref)
-
-    {:ok, %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}}
+      {:error, _} = error ->
+        error
+    end
   catch
     kind, reason ->
       {:error, %Duckdbex.Error{message: "#{kind}: #{inspect(reason)}"}}
