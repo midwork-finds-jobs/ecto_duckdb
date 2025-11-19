@@ -19,65 +19,59 @@ config :sample_phoenix, SamplePhoenix.Repo,
 # 2. Attach DuckLake databases with remote storage
 # 3. Configure database-specific settings
 #
-# Simple local configuration (works out of the box):
+# Advanced configuration with DuckLake and WebDAV remote storage:
 config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
   database: Path.expand("../sample_phoenix_ducklake_dev.duckdb", __DIR__),
   pool_size: 1,
   queue_target: 5000,
   queue_interval: 1000,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true
+  show_sensitive_data_on_connection_error: true,
 
-# Advanced configuration example (requires WebDAV credentials):
-# config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
-#   database: Path.expand("../sample_phoenix_ducklake_dev.duckdb", __DIR__),
-#   pool_size: 1,
-#   queue_target: 5000,
-#   queue_interval: 1000,
-#   stacktrace: true,
-#   show_sensitive_data_on_connection_error: true,
-#
-#   # Create secrets for WebDAV/S3 access
-#   secrets: [
-#     {:hetzner_storagebox,
-#      {
-#        [
-#          username: System.get_env("STORAGEBOX_USERNAME") || "your-username",
-#          password: System.get_env("STORAGEBOX_PASSWORD") || "your-password"
-#        ],
-#        [
-#          type: :webdav,
-#          scope: "storagebox://#{System.get_env("STORAGEBOX_USERNAME") || "your-username"}"
-#        ]
-#      }}
-#   ],
-#
-#   # Attach DuckLake databases
-#   attach: [
-#     # Local DuckLake with remote parquet storage on WebDAV
-#     {
-#       "ducklake:sample_phoenix_dev.ducklake",
-#       [
-#         as: :phoenix_db,
-#         options: [
-#           DATA_PATH: "storagebox://#{System.get_env("STORAGEBOX_USERNAME") || "your-username"}/phoenix_db"
-#         ]
-#       ]
-#     }
-#   ],
-#
-#   # Set database-specific configuration
-#   configs: [
-#     phoenix_db: [
-#       data_inlining_row_limit: 10000,
-#       parquet_compression: :zstd,
-#       parquet_compression_level: 20,
-#       parquet_version: 2
-#     ]
-#   ],
-#
-#   # Use attached database as default
-#   use: :phoenix_db
+  # Disable migration locking as DuckLake doesn't support PRIMARY KEY on schema_migrations
+  migration_lock: false,
+
+  # Create secrets for WebDAV/S3 access
+  secrets: [
+    {:hetzner_storagebox,
+     {
+       [
+         username: System.get_env("STORAGEBOX_USER"),
+         password: System.get_env("STORAGEBOX_PASSWORD")
+       ],
+       [
+         type: :webdav,
+         scope: "storagebox://#{System.get_env("STORAGEBOX_USER")}"
+       ]
+     }}
+  ],
+
+  # Attach DuckLake databases
+  attach: [
+    # Local DuckLake with remote parquet storage on WebDAV
+    {
+      "ducklake:sample_phoenix_dev.ducklake",
+      [
+        as: :phoenix_db,
+        options: [
+          DATA_PATH: "storagebox://#{System.get_env("STORAGEBOX_USER")}/phoenix_db"
+        ]
+      ]
+    }
+  ],
+
+  # Set database-specific configuration
+  configs: [
+    phoenix_db: [
+      data_inlining_row_limit: 10000,
+      parquet_compression: :zstd,
+      parquet_compression_level: 20,
+      parquet_version: 2
+    ]
+  ],
+
+  # Use attached database as default
+  use: :phoenix_db
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

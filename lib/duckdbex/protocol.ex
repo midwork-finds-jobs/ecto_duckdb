@@ -163,10 +163,28 @@ defmodule Duckdbex.Protocol do
   end
 
   @impl true
-  def handle_prepare(query, _opts, %{cache: cache} = state) do
+  def handle_prepare(query, opts, %{cache: cache} = state) do
     Logger.debug("Preparing query: #{inspect(query.query)}")
 
-    case Duckdbex.prepare_statement(state.conn, query.query) do
+    # FIXME: Disable this when DuckLake supports PRIMARY KEYs
+    # https://github.com/duckdb/ducklake/discussions/323
+    # Check if the currently used default database is a DuckLake
+    # If so, remove the PRIMARY KEY constraint
+    fixed_query_str =
+      if should_fix_ducklake_primary_key?(opts) do
+        Logger.debug("Removed non-supported 'PRIMARY KEY' from query for DuckLake database")
+
+        query.query
+        |> String.replace("BIGINT PRIMARY KEY", "BIGINT NOT NULL")
+        # For schema_migrations, use BIGINT instead of INTEGER for version column
+        # because migration timestamps are too large for INT32
+        |> String.replace(~r/"version" INTEGER PRIMARY KEY/, "\"version\" BIGINT NOT NULL")
+        |> String.replace("INTEGER PRIMARY KEY", "INTEGER NOT NULL")
+      else
+        query.query
+      end
+
+    case Duckdbex.prepare_statement(state.conn, fixed_query_str) do
       {:ok, stmt_ref} ->
         # Use the reference itself as the cache key
         new_cache = Map.put(cache, stmt_ref, stmt_ref)
@@ -177,6 +195,28 @@ defmodule Duckdbex.Protocol do
         Logger.error("Prepare error: #{inspect(err)}")
         error = %Duckdbex.Error{message: "#{inspect(err)}"}
         {:error, error, state}
+    end
+  end
+
+  # Check if we should apply the DuckLake PRIMARY KEY workaround
+  defp should_fix_ducklake_primary_key?(opts) do
+    repo_config = if opts[:repo], do: opts[:repo].config(), else: []
+    use_db = repo_config[:use]
+    attach = repo_config[:attach] || []
+
+    if use_db do
+      # Find the attach entry where :as matches :use
+      Enum.any?(attach, fn
+        {path, attach_opts} ->
+          as = attach_opts[:as] || attach_opts[:AS]
+          as == use_db && String.starts_with?(to_string(path), "ducklake:")
+
+        {path, attach_opts, _conn_opts} ->
+          as = attach_opts[:as] || attach_opts[:AS]
+          as == use_db && String.starts_with?(to_string(path), "ducklake:")
+      end)
+    else
+      false
     end
   end
 
@@ -263,7 +303,7 @@ defmodule Duckdbex.Protocol do
 
   # Create a DuckDB secret
   defp create_secret_direct!(conn, name, spec, secret_opts) do
-    {spec_sql, params} = format_secret_options(spec)
+    spec_sql = format_secret_options_inline(spec)
     type = secret_opts[:type] || :s3
     scope = if val = secret_opts[:scope], do: ", SCOPE '#{escape(val)}'", else: ""
     persistent = if secret_opts[:persistent], do: "PERSISTENT ", else: ""
@@ -273,7 +313,9 @@ defmodule Duckdbex.Protocol do
     # SCOPE goes inside the parentheses after the spec parameters
     query_sql = "CREATE #{persistent}SECRET #{name} (TYPE #{type}#{spec_part}#{scope})"
 
-    case Duckdbex.query(conn, query_sql, params) do
+    Logger.debug("Creating secret with SQL: #{query_sql}")
+
+    case Duckdbex.query(conn, query_sql) do
       {:ok, result_ref} ->
         Duckdbex.release(result_ref)
         Logger.debug("Created secret: #{name}")
@@ -352,17 +394,16 @@ defmodule Duckdbex.Protocol do
     |> Enum.join(", ")
   end
 
-  # Format secret options for CREATE SECRET statement
-  defp format_secret_options(opts) do
-    {query, params} =
-      Enum.map_reduce(opts, [], fn
-        {name, val}, acc when is_atom(val) ->
-          {"#{name} #{val}", acc}
+  # Format secret options for CREATE SECRET statement (inline values)
+  defp format_secret_options_inline(opts) do
+    opts
+    |> Enum.map(fn
+      {name, val} when is_atom(val) ->
+        "#{name} #{val}"
 
-        {name, val}, acc ->
-          {"#{name} ?", [val | acc]}
-      end)
-
-    {Enum.join(query, ", "), Enum.reverse(params)}
+      {name, val} ->
+        "#{name} '#{escape(val)}'"
+    end)
+    |> Enum.join(", ")
   end
 end
