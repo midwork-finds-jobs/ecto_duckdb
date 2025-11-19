@@ -10,78 +10,15 @@ config :sample_phoenix, SamplePhoenix.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
 
-# Configure DuckLake database (for analytics/time-series data)
-# Note: --pool-size 1 is REQUIRED because DuckDB only allows one writer at a time
-#
-# IMPORTANT: Before first use, install required extensions:
-#   mix run -e "SamplePhoenix.SetupDucklake.install_extensions()"
-#
-# This installs:
-#   - ducklake: For columnar storage
-#   - webdavfs (from community): For WebDAV/Storagebox access
+# Configure DuckLake database (separate DuckDB instance for analytics/demo data)
+# Note: pool_size: 1 is REQUIRED because DuckDB only allows one writer at a time
 config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
-  # Create WebDAV secrets for Hetzner Storagebox access (requires webdavfs extension)
-  # Format: {secret_name, {[credential_options], [secret_options]}}
-  # Credentials are loaded from environment variables (see .env.example)
-  secrets: [
-    {:hetzner_test,
-     {
-       [
-         username: System.get_env("STORAGEBOX_USERNAME") || "your-username",
-         password: System.get_env("STORAGEBOX_PASSWORD") || "your-password"
-       ],
-       [
-         type: :webdav,
-         scope: "storagebox://#{System.get_env("STORAGEBOX_USERNAME") || "your-username"}"
-       ]
-     }}
-  ],
-  # Attach DuckLake database with WebDAV data_path
-  attach: [
-    # Local DuckLake metadata, remote parquet storage on WebDAV
-    {
-      "ducklake:sample_phoenix_dev.ducklake",
-      [
-        as: :phoenix_db,
-        options: [
-          DATA_PATH: "storagebox://#{System.get_env("STORAGEBOX_USERNAME") || "your-username"}/phoenix_db"
-        ]
-      ]
-    },
-    # Remote DuckLake database on Hetzner Storagebox
-    {
-      "ducklake:joblake.ducklake",
-      [
-        as: :joblake,
-        options: [
-          DATA_PATH: "storagebox://#{System.get_env("STORAGEBOX_USERNAME") || "your-username"}/joblake"
-        ]
-      ]
-    }
-  ],
-  configs: [
-    # https://ducklake.select/docs/stable/duckdb/usage/configuration
-    phoenix_db: [
-      # Ideally schema_migrations would never go to parquet
-      # But if we move schema_migrations to eg the __ducklake_metadata_phoenix_db then transactions won't work:
-      # Error: Attempting to write to database \"__ducklake_metadata_my_ducklake\" in a transaction that has already modified database \"my_ducklake\" - a single transaction can only write to a single attached database."
-      # This also helps that schema_migrations would not be converted to parquet
-      data_inlining_row_limit: 10000,
-      parquet_compression: :zstd,
-      parquet_compression_level: 20,
-      parquet_version: 2
-    ]
-  ],
-  use: :phoenix_db,
-  # FIXME: This is problematic
-  # 10 minutes,
-  timeout: 600_000,
-  # DuckDB only allows one writer at a time
+  database: Path.expand("../sample_phoenix_ducklake_dev.duckdb", __DIR__),
   pool_size: 1,
+  queue_target: 5000,
+  queue_interval: 1000,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  # Disable migration locking as DuckLake doesn't support PRIMARY KEY on schema_migrations
-  migration_lock: false
+  show_sensitive_data_on_connection_error: true
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

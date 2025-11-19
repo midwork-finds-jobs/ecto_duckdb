@@ -10,7 +10,6 @@ defmodule SamplePhoenix.Application do
     children = [
       SamplePhoenixWeb.Telemetry,
       SamplePhoenix.Repo,
-      # DuckLake repository for analytics
       SamplePhoenix.DuckLakeRepo,
       {Ecto.Migrator,
        repos: Application.fetch_env!(:sample_phoenix, :ecto_repos), skip: skip_migrations?()},
@@ -37,7 +36,7 @@ defmodule SamplePhoenix.Application do
   end
 
   defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
+    # By default, DuckDB migrations are run when using a release
     System.get_env("RELEASE_NAME") == nil
   end
 end
