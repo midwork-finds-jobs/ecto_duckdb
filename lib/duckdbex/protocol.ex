@@ -290,10 +290,17 @@ defmodule Duckdbex.Protocol do
 
   # Execute a query during connection initialization
   defp execute_init_query!(conn, sql, params) do
-    case Duckdbex.query(conn, sql, params) do
+    result = if params == [] do
+      Duckdbex.query(conn, sql)
+    else
+      Duckdbex.query(conn, sql, params)
+    end
+
+    case result do
       {:ok, result_ref} ->
         Duckdbex.fetch_all(result_ref)
         Duckdbex.release(result_ref)
+        Logger.debug("Executed init query: #{sql}")
         :ok
 
       {:error, reason} ->
