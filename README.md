@@ -16,6 +16,7 @@ This project provides:
 - ✅ DBConnection protocol using duckdbex (no Rust compilation required)
 - ✅ Support for migrations, transactions, and queries
 - ✅ **Multi-statement query support** via `exec!()` function
+- ✅ **Automatic extension installation** from config (core, community, nightly, custom)
 - ✅ Type conversions (dates, timestamps, decimals, JSON, etc.)
 - ✅ Advanced DuckDB features (secrets, attach, configs, USE)
 - ✅ Sample Phoenix project with DuckLake + WebDAV remote storage
@@ -46,6 +47,42 @@ config :my_app, MyApp.Repo,
   # DuckDB only allows one writer at a time
   pool_size: 1
 ```
+
+### Extension Installation
+
+Automatically install and load DuckDB extensions during connection initialization:
+
+```elixir
+config :my_app, MyApp.Repo,
+  adapter: Ecto.Adapters.DuckDBex,
+  database: "path/to/database.duckdb",
+  pool_size: 1,
+
+  # Install and load extensions
+  extensions: [
+    # Simple atom installs from default source and auto-loads
+    :httpfs,
+    :parquet,
+
+    # Tuple with options for more control
+    {:netquack, source: :community},
+    {:spatial, source: :core},
+    {:my_extension, source: "https://example.com/repo", load: false}
+  ]
+```
+
+**Extension Options:**
+
+- `:source` - Installation source:
+  - `:default` - Default DuckDB registry (default)
+  - `:core` - Core extensions repository
+  - `:nightly` - Core nightly builds (`core_nightly`)
+  - `:community` - Community extensions repository
+  - URL string - Custom repository URL
+- `:force` - Force reinstall even if already installed (default: `false`)
+- `:load` - Automatically load after install (default: `true`)
+
+Extensions are installed during connection initialization, before any queries are executed.
 
 Define your repository:
 
