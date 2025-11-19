@@ -1,5 +1,5 @@
-defmodule EctoDuckdbex.TestRepo do
+defmodule EctoDuckdb.TestRepo do
   use Ecto.Repo,
-    otp_app: :ecto_duckdbex,
-    adapter: Ecto.Adapters.DuckDBex
+    otp_app: :ecto_duckdb,
+    adapter: Ecto.Adapters.DuckDB
 end

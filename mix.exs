@@ -1,22 +1,22 @@
-defmodule EctoDuckDBex.MixProject do
+defmodule EctoDuckDB.MixProject do
   use Mix.Project
 
   @version "0.1.0"
 
   def project do
     [
-      app: :ecto_duckdbex,
+      app: :ecto_duckdb,
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
-      source_url: "https://github.com/midwork-finds-jobs/ecto_duckdbex",
-      homepage_url: "https://github.com/midwork-finds-jobs/ecto_duckdbex",
+      source_url: "https://github.com/midwork-finds-jobs/ecto_duckdb",
+      homepage_url: "https://github.com/midwork-finds-jobs/ecto_duckdb",
       deps: deps(),
       description: description(),
       elixirc_paths: elixirc_paths(Mix.env()),
 
       # Docs
-      name: "Ecto DuckDBex",
+      name: "Ecto DuckDB",
       docs: docs()
     ]
   end
@@ -47,9 +47,9 @@ defmodule EctoDuckDBex.MixProject do
 
   defp docs do
     [
-      main: "Ecto.Adapters.DuckDBex",
+      main: "Ecto.Adapters.DuckDB",
       source_ref: "v#{@version}",
-      source_url: "https://github.com/midwork-finds-jobs/ecto_duckdbex"
+      source_url: "https://github.com/midwork-finds-jobs/ecto_duckdb"
     ]
   end
 

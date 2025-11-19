@@ -1,4 +1,4 @@
-defmodule Ecto.Adapters.DuckDBex do
+defmodule Ecto.Adapters.DuckDB do
   @moduledoc """
   Adapter module for DuckDBex.
 
@@ -78,7 +78,7 @@ defmodule Ecto.Adapters.DuckDBex do
   in your repository configuration.
 
       config :my_app, MyApp.Repo,
-        adapter: Ecto.Adapters.DuckDBex,
+        adapter: Ecto.Adapters.DuckDB,
         database: "path/to/database.duckdb",
         pool_size: 1
 
@@ -92,7 +92,7 @@ defmodule Ecto.Adapters.DuckDBex do
 
   ### Async Sandbox testing
 
-  The DuckDBex adapter does not support async tests when used with
+  The DuckDB adapter does not support async tests when used with
   `Ecto.Adapters.SQL.Sandbox`. This is due to DuckDB only allowing one write
   transaction at a time, which does not work with the Sandbox approach of wrapping
   each test in a transaction.
@@ -124,12 +124,12 @@ defmodule Ecto.Adapters.DuckDBex do
   """
 
   use Ecto.Adapters.SQL,
-    driver: :ecto_duckdbex
+    driver: :ecto_duckdb
 
   @behaviour Ecto.Adapter.Storage
   @behaviour Ecto.Adapter.Structure
 
-  alias Ecto.Adapters.DuckDBex.Codec
+  alias Ecto.Adapters.DuckDB.Codec
 
   @impl Ecto.Adapter.Storage
   def storage_down(options) do
@@ -166,11 +166,11 @@ defmodule Ecto.Adapters.DuckDBex do
       is_nil(database) ->
         raise ArgumentError,
               """
-              No DuckDBex database path specified. Please check the configuration for your Repo.
+              No DuckDB database path specified. Please check the configuration for your Repo.
               Your config/*.exs file should have something like this in it:
 
                 config :my_app, MyApp.Repo,
-                  adapter: Ecto.Adapters.DuckDBex,
+                  adapter: Ecto.Adapters.DuckDB,
                   database: "/path/to/database.duckdb"
               """
 

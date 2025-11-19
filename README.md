@@ -1,4 +1,4 @@
-# Ecto Adapter for DuckDBex
+# Ecto Adapter for DuckDB
 
 An Ecto adapter for DuckDB using the [duckdbex](https://github.com/AlexR2D2/duckdbex) Elixir NIF library instead of Rust bindings.
 
@@ -20,6 +20,7 @@ This project provides:
 - ✅ Type conversions (dates, timestamps, decimals, JSON, etc.)
 - ✅ Advanced DuckDB features (secrets, attach, configs, USE)
 - ✅ Sample Phoenix project with DuckLake + WebDAV remote storage
+- 🚫 `HUGEINT` (128bit integer) is not yet supported [because they require extra conversions](https://github.com/AlexR2D2/duckdbex?tab=readme-ov-file#huge-numbers-hugeint)
 
 ## Installation
 
@@ -28,9 +29,7 @@ Add to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ecto_duckdbex, "~> 0.1.0"},
-    {:ecto_sql, "~> 3.13"},
-    {:duckdbex, "~> 0.3.5"}
+    {:ecto_duckdb, "~> 0.1.0"},
   ]
 end
 ```
@@ -42,7 +41,7 @@ Configure your repository:
 ```elixir
 # config/config.exs
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
+  adapter: Ecto.Adapters.DuckDB,
   database: "path/to/database.duckdb",
   # DuckDB only allows one writer at a time
   pool_size: 1
@@ -54,7 +53,7 @@ Automatically install and load DuckDB extensions during connection initializatio
 
 ```elixir
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
+  adapter: Ecto.Adapters.DuckDB,
   database: "path/to/database.duckdb",
   pool_size: 1,
 
@@ -94,7 +93,7 @@ Create DuckDB secrets for accessing remote storage (S3, WebDAV, etc.):
 
 ```elixir
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
+  adapter: Ecto.Adapters.DuckDB,
   database: "path/to/database.duckdb",
   pool_size: 1,
 
@@ -128,8 +127,8 @@ Attach additional DuckDB or DuckLake databases:
 
 ```elixir
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
-  database: "path/to/database.duckdb",
+  adapter: Ecto.Adapters.DuckDB,
+  database: :memory,
   pool_size: 1,
 
   attach: [
@@ -154,10 +153,17 @@ Set database-specific configuration options:
 
 ```elixir
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
-  database: "path/to/database.duckdb",
+  adapter: Ecto.Adapters.DuckDB,
+  database: :memory,
   pool_size: 1,
 
+  attach: [
+    {"ducklake:analytics.ducklake", [
+      as: :analytics_db,
+    ]}
+  ]
+  
+  # These options affect how the ducklake behaves:
   configs: [
     analytics_db: [
       data_inlining_row_limit: 10000,
@@ -174,11 +180,18 @@ Switch to a specific attached database as the default:
 
 ```elixir
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
+  adapter: Ecto.Adapters.DuckDB,
   database: "path/to/database.duckdb",
   pool_size: 1,
 
+  attach: [
+    {"ducklake:analytics.ducklake", [
+      as: :analytics_db,
+    ]}
+  ]
+
   # Switch to attached database
+  # Now all tables in this repo will be created to ducklake
   use: :analytics_db
 ```
 
@@ -190,7 +203,7 @@ Here's a complete example using all advanced features together:
 
 ```elixir
 config :my_app, MyApp.Repo,
-  adapter: Ecto.Adapters.DuckDBex,
+  adapter: Ecto.Adapters.DuckDB,
   database: "local.duckdb",
   pool_size: 1,
 
@@ -238,7 +251,7 @@ Define your repository:
 defmodule MyApp.Repo do
   use Ecto.Repo,
     otp_app: :my_app,
-    adapter: Ecto.Adapters.DuckDBex
+    adapter: Ecto.Adapters.DuckDB
 end
 ```
 
@@ -250,22 +263,31 @@ The adapter supports executing multi-statement queries that are not supported by
 defmodule MyApp.Repo do
   use Ecto.Repo,
     otp_app: :my_app,
-    adapter: Ecto.Adapters.DuckDBex
+    adapter: Ecto.Adapters.DuckDB
 
   # Enable multi-statement query support
-  use Ecto.Adapters.DuckDBex.RawQuery
+  use Ecto.Adapters.DuckDB.RawQuery
 end
 ```
 
 Now you can use `exec!/1` to execute complex multi-statement queries:
 
 ```elixir
-# Install and load extensions
+# Do whatever operations you want with DuckDB:
 MyApp.Repo.exec!("""
-  INSTALL httpfs;
-  LOAD httpfs;
-  INSTALL parquet;
-  LOAD parquet;
+  ATTACH ':memory:' AS temporary;
+
+  CREATE TABLE temporary.trains AS (
+    FROM 'https://blobs.duckdb.org/nl-railway/services-2023.csv.gz'
+  );
+
+  COPY (
+    FROM temporary.trains
+  ) TO '/tmp/trains.parquet' (
+    COMPRESSION zstd,
+    COMPRESSION_LEVEL 20,
+    PARQUET_VERSION 'v2'
+  );
 """)
 
 # Complex queries with CTEs
@@ -278,7 +300,6 @@ MyApp.Repo.exec!("""
 ```
 
 This is useful for:
-- Installing and loading DuckDB extensions
 - Executing multiple DDL statements together
 - Complex queries with CTEs and WITH clauses
 - Queries that don't work with prepared statements
@@ -295,14 +316,6 @@ mix ecto.migrate
 ```
 
 This will create a DuckDB database and run migrations to create tables.
-
-## Key Differences from ecto_duckdb
-
-This adapter uses `duckdbex` (pure Elixir NIF) instead of the Rust-based connector:
-
-- **No Rust compilation** - Faster setup and fewer dependencies
-- **Uses duckdbex API** - Native Elixir interface to DuckDB
-- **Same Ecto interface** - Drop-in replacement for most use cases
 
 ## Architecture
 
@@ -325,7 +338,6 @@ lib/
 
 - **Pool Size**: Must be set to 1 (DuckDB single-writer limitation)
 - **Transactions**: Fully supported
-- **Concurrent Reads**: Supported with proper connection pooling
 
 ## Development
 
@@ -346,7 +358,7 @@ mix phx.server
 
 ## Credits
 
-Based on [ecto_duckdb](https://github.com/midwork-finds-jobs/ecto_duckdb) but using duckdbex instead of Rust bindings.
+Took a lot of examples from [ecto_sqlite3](https://github.com/elixir-sqlite/ecto_sqlite3).
 
 ## License
 

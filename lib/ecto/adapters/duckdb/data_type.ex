@@ -1,4 +1,4 @@
-defmodule Ecto.Adapters.DuckDBex.DataType do
+defmodule Ecto.Adapters.DuckDB.DataType do
   @moduledoc false
 
   @spec column_type(atom(), Keyword.t()) :: String.t()
@@ -33,42 +33,42 @@ defmodule Ecto.Adapters.DuckDBex.DataType do
   end
 
   def column_type(:array, _opts) do
-    case Application.get_env(:ecto_duckdbex, :array_type, :string) do
+    case Application.get_env(:ecto_duckdb, :array_type, :string) do
       :string -> "VARCHAR"
       :binary -> "BLOB"
     end
   end
 
   def column_type({:array, _}, _opts) do
-    case Application.get_env(:ecto_duckdbex, :array_type, :string) do
+    case Application.get_env(:ecto_duckdb, :array_type, :string) do
       :string -> "VARCHAR"
       :binary -> "BLOB"
     end
   end
 
   def column_type(:binary_id, _opts) do
-    case Application.get_env(:ecto_duckdbex, :binary_id_type, :string) do
+    case Application.get_env(:ecto_duckdb, :binary_id_type, :string) do
       :string -> "VARCHAR"
       :binary -> "BLOB"
     end
   end
 
   def column_type(:map, _opts) do
-    case Application.get_env(:ecto_duckdbex, :map_type, :string) do
+    case Application.get_env(:ecto_duckdb, :map_type, :string) do
       :string -> "VARCHAR"
       :binary -> "BLOB"
     end
   end
 
   def column_type({:map, _}, _opts) do
-    case Application.get_env(:ecto_duckdbex, :map_type, :string) do
+    case Application.get_env(:ecto_duckdb, :map_type, :string) do
       :string -> "VARCHAR"
       :binary -> "BLOB"
     end
   end
 
   def column_type(:uuid, _opts) do
-    case Application.get_env(:ecto_duckdbex, :uuid_type, :string) do
+    case Application.get_env(:ecto_duckdb, :uuid_type, :string) do
       :string -> "VARCHAR"
       :binary -> "BLOB"
     end

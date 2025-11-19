@@ -6,10 +6,10 @@ File.rm(test_db)
 File.rm(test_db <> ".wal")
 
 # Create test database
-_ = Ecto.Adapters.DuckDBex.storage_up(EctoDuckdbex.TestRepo.config())
+_ = Ecto.Adapters.DuckDB.storage_up(EctoDuckdb.TestRepo.config())
 
 # Start the repo
-{:ok, _pid} = EctoDuckdbex.TestRepo.start_link()
+{:ok, _pid} = EctoDuckdb.TestRepo.start_link()
 
 # Run migrations
-Ecto.Migrator.run(EctoDuckdbex.TestRepo, [{0, EctoDuckdbex.TestMigration}], :up, all: true, log: false)
+Ecto.Migrator.run(EctoDuckdb.TestRepo, [{0, EctoDuckdb.TestMigration}], :up, all: true, log: false)

@@ -1,4 +1,4 @@
-defmodule Ecto.Adapters.DuckDBex.Connection do
+defmodule Ecto.Adapters.DuckDB.Connection do
   @moduledoc false
 
   @behaviour Ecto.Adapters.SQL.Connection
@@ -14,7 +14,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   alias Ecto.Query.QueryExpr
   alias Ecto.Query.WithExpr
 
-  import Ecto.Adapters.DuckDBex.DataType
+  import Ecto.Adapters.DuckDB.DataType
 
   @parent_as __MODULE__
 
@@ -96,7 +96,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   @impl true
   def query_many(_conn, _sql, _params, _opts) do
-    raise RuntimeError, "query_many is not supported in the DuckDBex adapter"
+    raise RuntimeError, "query_many is not supported in the DuckDB adapter"
   end
 
   @impl true
@@ -169,7 +169,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   @impl true
   def all(%Ecto.Query{lock: lock}) when lock != nil do
-    raise ArgumentError, "locks are not supported by DuckDBex"
+    raise ArgumentError, "locks are not supported by DuckDB"
   end
 
   def all(query, as_prefix \\ []) do
@@ -382,7 +382,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   @impl true
   def execute_ddl({_command, %Table{options: options}, _}) when is_list(options) do
-    raise ArgumentError, "DuckDBex adapter does not support keyword lists in :options"
+    raise ArgumentError, "DuckDB adapter does not support keyword lists in :options"
   end
 
   def execute_ddl({:create, %Table{} = table, columns}) do
@@ -462,27 +462,27 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   @impl true
   def execute_ddl({_, %Index{concurrently: true}}) do
-    raise ArgumentError, "`concurrently` is not supported with DuckDBex"
+    raise ArgumentError, "`concurrently` is not supported with DuckDB"
   end
 
   @impl true
   def execute_ddl({_, %Index{only: true}}) do
-    raise ArgumentError, "`only` is not supported with DuckDBex"
+    raise ArgumentError, "`only` is not supported with DuckDB"
   end
 
   @impl true
   def execute_ddl({_, %Index{include: x}}) when length(x) != 0 do
-    raise ArgumentError, "`include` is not supported with DuckDBex"
+    raise ArgumentError, "`include` is not supported with DuckDB"
   end
 
   @impl true
   def execute_ddl({_, %Index{using: x}}) when not is_nil(x) do
-    raise ArgumentError, "`using` is not supported with DuckDBex"
+    raise ArgumentError, "`using` is not supported with DuckDB"
   end
 
   @impl true
   def execute_ddl({_, %Index{nulls_distinct: x}}) when not is_nil(x) do
-    raise ArgumentError, "`nulls_distinct` is not supported with DuckDBex"
+    raise ArgumentError, "`nulls_distinct` is not supported with DuckDB"
   end
 
   @impl true
@@ -542,7 +542,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   @impl true
   def execute_ddl({:drop_if_exists, %Index{concurrently: true}}) do
-    raise ArgumentError, "`concurrently` is not supported with DuckDBex"
+    raise ArgumentError, "`concurrently` is not supported with DuckDB"
   end
 
   @impl true
@@ -591,7 +591,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   @impl true
   def execute_ddl(keyword) when is_list(keyword) do
-    raise ArgumentError, "DuckDBex adapter does not support keyword lists in execute"
+    raise ArgumentError, "DuckDB adapter does not support keyword lists in execute"
   end
 
   @impl true
@@ -636,7 +636,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   def execute_ddl({:create, %Constraint{}}) do
-    raise ArgumentError, "DuckDBex does not support ALTER TABLE ADD CONSTRAINT."
+    raise ArgumentError, "DuckDB does not support ALTER TABLE ADD CONSTRAINT."
   end
 
   def execute_ddl({:drop, %Index{} = index}) do
@@ -666,11 +666,11 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   def execute_ddl({:drop, %Constraint{}, _mode}) do
-    raise ArgumentError, "DuckDBex does not support ALTER TABLE DROP CONSTRAINT."
+    raise ArgumentError, "DuckDB does not support ALTER TABLE DROP CONSTRAINT."
   end
 
   def execute_ddl({:drop_if_exists, %Constraint{}, _mode}) do
-    raise ArgumentError, "DuckDBex does not support ALTER TABLE DROP CONSTRAINT."
+    raise ArgumentError, "DuckDB does not support ALTER TABLE DROP CONSTRAINT."
   end
 
   def execute_ddl({:rename, %Table{} = current_table, %Table{} = new_table}) do
@@ -707,7 +707,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   def execute_ddl(string) when is_binary(string), do: [string]
 
   def execute_ddl(keyword) when is_list(keyword) do
-    raise ArgumentError, "DuckDBex adapter does not support keyword lists in execute"
+    raise ArgumentError, "DuckDB adapter does not support keyword lists in execute"
   end
 
   @impl true
@@ -729,7 +729,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   defp on_conflict({:replace_all, _, {:constraint, _}}, _header) do
-    raise ArgumentError, "Upsert in DuckDBex does not support ON CONSTRAINT"
+    raise ArgumentError, "Upsert in DuckDB does not support ON CONSTRAINT"
   end
 
   defp on_conflict({:replace_all, _, []}, _header) do
@@ -851,7 +851,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp distinct(%ByExpr{expr: exprs}, _sources, query) when is_list(exprs) do
     raise Ecto.QueryError,
       query: query,
-      message: "DISTINCT with multiple columns is not supported by DuckDBex"
+      message: "DISTINCT with multiple columns is not supported by DuckDB"
   end
 
   defp select(%{select: %{fields: fields}, distinct: distinct} = query, sources) do
@@ -871,7 +871,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
             raise Ecto.QueryError,
               query: query,
               message: """
-              DuckDBex does not support selecting all fields from #{source} \
+              DuckDB does not support selecting all fields from #{source} \
               without a schema. Please specify a schema or specify exactly \
               which fields you want to select\
               """
@@ -974,13 +974,13 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp update_op(:push, _quoted_key, _value, _sources, query) do
     raise Ecto.QueryError,
       query: query,
-      message: "Arrays are not supported for DuckDBex"
+      message: "Arrays are not supported for DuckDB"
   end
 
   defp update_op(:pull, _quoted_key, _value, _sources, query) do
     raise Ecto.QueryError,
       query: query,
-      message: "Arrays are not supported for DuckDBex"
+      message: "Arrays are not supported for DuckDB"
   end
 
   defp update_op(command, _quoted_key, _value, _sources, query) do
@@ -1035,7 +1035,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp assert_valid_join(%JoinExpr{hints: hints}, query) when hints != [] do
     raise Ecto.QueryError,
       query: query,
-      message: "join hints are not supported by DuckDBex"
+      message: "join hints are not supported by DuckDB"
   end
 
   defp assert_valid_join(_join_expr, _query), do: :ok
@@ -1054,7 +1054,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp join_qual(mode, query) do
     raise Ecto.QueryError,
       query: query,
-      message: "join `#{inspect(mode)}` not supported by DuckDBex"
+      message: "join `#{inspect(mode)}` not supported by DuckDB"
   end
 
   def where(%{wheres: wheres} = query, sources) do
@@ -1175,7 +1175,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp combination({:except_all, query}, _) do
     raise Ecto.QueryError,
       query: query,
-      message: "DuckDBex does not support EXCEPT ALL"
+      message: "DuckDB does not support EXCEPT ALL"
   end
 
   defp combination({:intersect_all, query}, _) do
@@ -1187,7 +1187,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   def lock(query, _sources) do
     raise Ecto.QueryError,
       query: query,
-      message: "DuckDBex does not support locks"
+      message: "DuckDB does not support locks"
   end
 
   defp boolean(_name, [], _sources, _query), do: []
@@ -1381,7 +1381,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
 
   defp expr({:datetime_add, _, [datetime, count, interval]}, sources, query) do
     format =
-      case Application.get_env(:ecto_duckdbex, :datetime_type) do
+      case Application.get_env(:ecto_duckdb, :datetime_type) do
         :text_datetime ->
           "%Y-%m-%d %H:%M:%f000Z"
 
@@ -1415,7 +1415,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp expr({:ilike, _, [_, _]}, _sources, query) do
     raise Ecto.QueryError,
       query: query,
-      message: "ilike is not supported by DuckDBex"
+      message: "ilike is not supported by DuckDB"
   end
 
   defp expr({:over, _, [agg, name]}, sources, query) when is_atom(name) do
@@ -1491,7 +1491,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp expr(list, _sources, query) when is_list(list) do
     raise Ecto.QueryError,
       query: query,
-      message: "Array literals are not supported by DuckDBex"
+      message: "Array literals are not supported by DuckDB"
   end
 
   defp expr(%Decimal{} = decimal, _sources, _query) do
@@ -1505,7 +1505,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   defp expr(%Ecto.Query.Tagged{value: expr, type: :binary_id}, sources, query) do
-    case Application.get_env(:ecto_duckdbex, :binary_id_type, :string) do
+    case Application.get_env(:ecto_duckdb, :binary_id_type, :string) do
       :string ->
         ["CAST(", expr(expr, sources, query), " AS ", column_type(:string, query), ?)]
 
@@ -1515,7 +1515,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   defp expr(%Ecto.Query.Tagged{value: expr, type: :uuid}, sources, query) do
-    case Application.get_env(:ecto_duckdbex, :uuid_type, :string) do
+    case Application.get_env(:ecto_duckdb, :uuid_type, :string) do
       :string ->
         ["CAST(", expr(expr, sources, query), " AS ", column_type(:string, query), ?)]
 
@@ -1727,7 +1727,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   defp column_change(_table, {:modify, _name, _type, _opts}) do
-    raise ArgumentError, "ALTER COLUMN not supported by DuckDBex"
+    raise ArgumentError, "ALTER COLUMN not supported by DuckDB"
   end
 
   defp column_change(table, {:remove, name, _type, _opts}) do
@@ -1794,7 +1794,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   end
 
   defp default_expr({:ok, value}) when is_map(value) or is_list(value) do
-    library = Application.get_env(:ecto_duckdbex, :json_library, Jason)
+    library = Application.get_env(:ecto_duckdb, :json_library, Jason)
     expression = IO.iodata_to_binary(library.encode_to_iodata!(value))
 
     [" DEFAULT ('", escape_string(expression), "')"]
@@ -1813,7 +1813,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp options_expr(nil), do: []
 
   defp options_expr(options) when is_list(options) do
-    raise ArgumentError, "DuckDBex adapter does not support keyword lists in :options"
+    raise ArgumentError, "DuckDB adapter does not support keyword lists in :options"
   end
 
   defp options_expr(options), do: [?\s, to_string(options)]
@@ -1946,7 +1946,7 @@ defmodule Ecto.Adapters.DuckDBex.Connection do
   defp quote_table(nil, name), do: quote_entity(name)
 
   defp quote_table(prefix, _name) when is_atom(prefix) or is_binary(prefix) do
-    raise ArgumentError, "DuckDBex does not support table prefixes"
+    raise ArgumentError, "DuckDB does not support table prefixes"
   end
 
   defp quote_table(_, name), do: quote_entity(name)

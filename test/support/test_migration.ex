@@ -1,4 +1,4 @@
-defmodule EctoDuckdbex.TestMigration do
+defmodule EctoDuckdb.TestMigration do
   use Ecto.Migration
 
   def change do

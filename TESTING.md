@@ -1,20 +1,16 @@
 # Testing Guide
 
-## Manual Testing with Sample Phoenix Project
-
-Since Elixir is not available in the current environment, here's how to test the implementation when you have Elixir/Erlang installed:
-
-### Prerequisites
+## Prerequisites
 
 1. Install Elixir (1.15+) and Erlang
 2. Clone this repository
 
-### Test Steps
+## Test Steps
 
 #### 1. Install Dependencies
 
 ```bash
-cd ecto_duckdbex
+cd ecto_duckdb
 mix deps.get
 ```
 
@@ -134,10 +130,8 @@ This might be due to missing DuckDB system libraries. Ensure DuckDB is installed
 # macOS
 brew install duckdb
 
-# Ubuntu/Debian
-wget https://github.com/duckdb/duckdb/releases/download/v0.9.2/duckdb_cli-linux-amd64.zip
-unzip duckdb_cli-linux-amd64.zip
-sudo mv duckdb /usr/local/bin/
+# Linux
+curl https://install.duckdb.org | sh
 ```
 
 ## Integration Testing

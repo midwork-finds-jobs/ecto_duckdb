@@ -15,6 +15,9 @@ IO.puts("This may take a minute as it queries remote data sources...")
 # Note: Using exec! for multi-statement WITH clause query
 # DuckLake doesn't yet support macros so we can't DRY the 2 queries here yet
 DuckLakeRepo.exec!("""
+  INSTALL netquack;
+  LOAD netquack;
+
   WITH eu_jobs AS (
     SELECT DISTINCT('https://' || extract_host(url) || extract_path(url)) as url
     FROM read_json(

@@ -1,6 +1,6 @@
-defmodule Ecto.Adapters.DuckDBex.RawQuery do
+defmodule Ecto.Adapters.DuckDB.RawQuery do
   @moduledoc """
-  Provides raw query execution for DuckDBex that bypasses prepared statements.
+  Provides raw query execution for DuckDB that bypasses prepared statements.
 
   This allows executing multi-statement queries that are not supported by
   the standard DBConnection protocol's prepared statement system.
@@ -12,10 +12,10 @@ defmodule Ecto.Adapters.DuckDBex.RawQuery do
       defmodule MyApp.Repo do
         use Ecto.Repo,
           otp_app: :my_app,
-          adapter: Ecto.Adapters.DuckDBex
+          adapter: Ecto.Adapters.DuckDB
 
         # Import raw query support
-        use Ecto.Adapters.DuckDBex.RawQuery
+        use Ecto.Adapters.DuckDB.RawQuery
       end
 
   Then use it in your code:
@@ -59,7 +59,7 @@ defmodule Ecto.Adapters.DuckDBex.RawQuery do
   defmacro __using__(_opts) do
     quote do
       def exec!(sql) when is_binary(sql) do
-        Ecto.Adapters.DuckDBex.RawQuery.execute_raw!(__MODULE__, sql)
+        Ecto.Adapters.DuckDB.RawQuery.execute_raw!(__MODULE__, sql)
       end
     end
   end
@@ -71,7 +71,7 @@ defmodule Ecto.Adapters.DuckDBex.RawQuery do
 
   @doc false
   def execute_raw!(repo, sql) when is_binary(sql) do
-    alias Ecto.Adapters.DuckDBex.RawQuery.RawQuery
+    alias Ecto.Adapters.DuckDB.RawQuery.RawQuery
 
     adapter_meta = Ecto.Repo.Registry.lookup(repo)
 
@@ -88,7 +88,7 @@ defmodule Ecto.Adapters.DuckDBex.RawQuery do
   end
 end
 
-defimpl DBConnection.Query, for: Ecto.Adapters.DuckDBex.RawQuery.RawQuery do
+defimpl DBConnection.Query, for: Ecto.Adapters.DuckDB.RawQuery.RawQuery do
   def parse(query, _opts), do: query
   def describe(query, _opts), do: query
   def encode(_query, params, _opts), do: params

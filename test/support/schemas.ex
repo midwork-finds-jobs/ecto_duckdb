@@ -1,4 +1,4 @@
-defmodule EctoDuckdbex.User do
+defmodule EctoDuckdb.User do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -6,7 +6,7 @@ defmodule EctoDuckdbex.User do
     field :name, :string
     field :email, :string
     field :age, :integer
-    has_many :posts, EctoDuckdbex.Post
+    has_many :posts, EctoDuckdb.Post
     timestamps()
   end
 
@@ -18,7 +18,7 @@ defmodule EctoDuckdbex.User do
   end
 end
 
-defmodule EctoDuckdbex.Post do
+defmodule EctoDuckdb.Post do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -26,7 +26,7 @@ defmodule EctoDuckdbex.Post do
     field :title, :string
     field :body, :string
     field :published, :boolean, default: false
-    belongs_to :user, EctoDuckdbex.User
+    belongs_to :user, EctoDuckdb.User
     timestamps()
   end
 

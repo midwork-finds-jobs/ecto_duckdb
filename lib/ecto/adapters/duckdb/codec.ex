@@ -1,4 +1,4 @@
-defmodule Ecto.Adapters.DuckDBex.Codec do
+defmodule Ecto.Adapters.DuckDB.Codec do
   @moduledoc false
 
   def bool_decode(0), do: {:ok, false}
@@ -10,7 +10,7 @@ defmodule Ecto.Adapters.DuckDBex.Codec do
   def bool_decode(v), do: {:ok, v}
 
   def json_decode(v) when is_binary(v) do
-    case Application.get_env(:ecto_duckdbex, :json_library, Jason).decode(v) do
+    case Application.get_env(:ecto_duckdb, :json_library, Jason).decode(v) do
       {:ok, decoded} -> {:ok, decoded}
       {:error, _reason} -> :error
     end
@@ -126,7 +126,7 @@ defmodule Ecto.Adapters.DuckDBex.Codec do
   def json_encode(value) when is_bitstring(value), do: {:ok, value}
 
   def json_encode(value) do
-    {:ok, Application.get_env(:ecto_duckdbex, :json_library, Jason).encode!(value)}
+    {:ok, Application.get_env(:ecto_duckdb, :json_library, Jason).encode!(value)}
   rescue
     _err -> :error
   end
