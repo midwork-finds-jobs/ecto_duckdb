@@ -3,21 +3,18 @@
 #     mix run priv/duck_lake_repo/seeds.exs
 #
 # This seed file loads Lever job board URLs from Common Crawl into the jobs table
+#
+# Note: Extensions (httpfs, netquack) are installed and loaded automatically
+# via the :extensions config option in config/dev.exs
 
 alias SamplePhoenix.DuckLakeRepo
 
 IO.puts("Fetching job URLs from Common Crawl and inserting into DuckLake...")
 IO.puts("This may take a minute as it queries remote data sources...")
 
-# Note: Using exec! for multi-statement queries that would fail with query!
+# Note: Using exec! for multi-statement WITH clause query
 # DuckLake doesn't yet support macros so we can't DRY the 2 queries here yet
 DuckLakeRepo.exec!("""
-  INSTALL httpfs;
-  LOAD httpfs;
-
-  INSTALL netquack FROM community;
-  LOAD netquack;
-
   WITH eu_jobs AS (
     SELECT DISTINCT('https://' || extract_host(url) || extract_path(url)) as url
     FROM read_json(

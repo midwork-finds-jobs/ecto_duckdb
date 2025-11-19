@@ -31,23 +31,15 @@ defmodule Duckdbex.Protocol do
     {:ok, conn} = Duckdbex.connection(db)
 
     # Process post-connection configuration similar to ecto_duck
+    extensions = opts[:extensions] || []
     secrets = opts[:secrets] || []
     attach = opts[:attach] || []
     configs = opts[:configs] || []
 
-    # Load required extensions before creating secrets
-    needs_webdavfs? =
-      Enum.any?(secrets, fn
-        {_name, {_spec, secret_opts}} -> secret_opts[:type] == :webdav
-        {_name, _spec} -> false
-      end)
-
-    if needs_webdavfs? do
-      # Install and load webdavfs extension for WebDAV secret support
-      execute_init_query!(conn, "INSTALL webdavfs FROM community", [])
-      execute_init_query!(conn, "LOAD webdavfs", [])
-      Logger.debug("Loaded webdavfs extension for WebDAV secret support")
-    end
+    # Install and load extensions first (including webdavfs if needed for secrets)
+    Enum.each(extensions, fn ext ->
+      install_extension!(conn, ext)
+    end)
 
     # Create secrets first (they might be needed for attaching)
     Enum.each(secrets, fn
@@ -434,5 +426,73 @@ defmodule Duckdbex.Protocol do
         "#{name} '#{escape(val)}'"
     end)
     |> Enum.join(", ")
+  end
+
+  ## ------------------------------------------------------------------
+  ## Extension Installation Helpers
+  ## ------------------------------------------------------------------
+
+  # Install a DuckDB extension during connection initialization.
+  #
+  # Extensions can be specified as:
+  # - An atom (e.g., `:httpfs`) - installs from default source
+  # - A tuple `{name, opts}` with options:
+  #   - `:source` - `:default`, `:core`, `:nightly`, `:community`, or URL string
+  #   - `:force` - boolean to force reinstall
+  #   - `:load` - boolean to automatically load after install (default: true)
+  #
+  # Examples:
+  #   install_extension!(conn, :httpfs)
+  #   install_extension!(conn, {:parquet, source: :community, load: false})
+  #   install_extension!(conn, {:httpfs, source: :nightly, force: true})
+  defp install_extension!(conn, name) when is_atom(name) do
+    install_extension!(conn, {name, []})
+  end
+
+  defp install_extension!(conn, {name, opts}) do
+    # Build FROM clause based on source option
+    from =
+      case opts[:source] do
+        :core -> " FROM core"
+        :nightly -> " FROM core_nightly"
+        :community -> " FROM community"
+        nil -> ""
+        :default -> ""
+        repo when is_binary(repo) -> " FROM '#{escape(repo)}'"
+      end
+
+    # Add FORCE if requested
+    force = if opts[:force], do: "FORCE ", else: ""
+
+    # Install the extension
+    install_sql = "#{force}INSTALL #{name}#{from}"
+    Logger.debug("Installing extension: #{install_sql}")
+
+    case Duckdbex.query(conn, install_sql) do
+      {:ok, result_ref} ->
+        Duckdbex.release(result_ref)
+        Logger.debug("Installed extension: #{name}")
+
+        # Load extension if requested (default: true)
+        if Keyword.get(opts, :load, true) do
+          load_sql = "LOAD #{name}"
+          Logger.debug("Loading extension: #{load_sql}")
+
+          case Duckdbex.query(conn, load_sql) do
+            {:ok, load_result_ref} ->
+              Duckdbex.release(load_result_ref)
+              Logger.debug("Loaded extension: #{name}")
+              :ok
+
+            {:error, reason} ->
+              raise Duckdbex.Error, message: "Failed to load extension #{name}: #{inspect(reason)}"
+          end
+        else
+          :ok
+        end
+
+      {:error, reason} ->
+        raise Duckdbex.Error, message: "Failed to install extension #{name}: #{inspect(reason)}"
+    end
   end
 end

@@ -36,6 +36,18 @@ config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
   # Disable query logging (set to false or :info/:warning/:error)
   log: false,
 
+  # Install and load DuckDB extensions
+  # Extensions can be specified as atoms or {name, opts} tuples
+  # Options: :source (:default, :core, :nightly, :community, or URL), :force (boolean), :load (boolean, default: true)
+  extensions: [
+    # Install httpfs from default source and auto-load
+    :httpfs,
+    # Install netquack from community repository
+    {:netquack, source: :community},
+    # Install webdavfs from community for WebDAV secret support
+    {:webdavfs, source: :community}
+  ],
+
   # Create secrets for WebDAV/S3 access
   secrets: [
     {:hetzner_storagebox,
