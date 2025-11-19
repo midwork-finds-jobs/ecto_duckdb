@@ -8,12 +8,34 @@ defmodule Duckdbex.Protocol do
   require Logger
 
   ## ------------------------------------------------------------------
+  ## Logging Helpers
+  ## ------------------------------------------------------------------
+
+  # Log debug messages only if logging is enabled at debug level
+  defp log_debug(%{log_level: log_level}, message) when log_level == :debug do
+    Logger.debug(message)
+  end
+
+  defp log_debug(_state, _message), do: :ok
+
+  ## ------------------------------------------------------------------
   ## gen_server Function Definitions
   ## ------------------------------------------------------------------
 
   @impl true
   def connect(opts) do
-    Logger.debug("Initiating connect: #{inspect(opts)}")
+    # Determine log level based on :log option
+    # false = no debug logging, true/:debug = debug logging
+    # :info/:warning/:error = only log at that level or higher
+    log_level = case opts[:log] do
+      false -> :none
+      true -> :debug
+      level when level in [:debug, :info, :warning, :error] -> level
+      _ -> :debug
+    end
+
+    state = %{log_level: log_level}
+    log_debug(state, "Initiating connect: #{inspect(opts)}")
 
     database = Keyword.get(opts, :database, ":memory:")
 
@@ -38,41 +60,41 @@ defmodule Duckdbex.Protocol do
 
     # Install and load extensions first (including webdavfs if needed for secrets)
     Enum.each(extensions, fn ext ->
-      install_extension!(conn, ext)
+      install_extension!(conn, ext, state)
     end)
 
     # Create secrets first (they might be needed for attaching)
     Enum.each(secrets, fn
       {name, {spec, secret_opts}} ->
-        create_secret_direct!(conn, name, spec, secret_opts)
+        create_secret_direct!(conn, name, spec, secret_opts, state)
 
       {name, spec} ->
-        create_secret_direct!(conn, name, spec, [])
+        create_secret_direct!(conn, name, spec, [], state)
     end)
 
     # Then attach databases
     Enum.each(attach, fn
       {path, attach_opts} ->
-        attach_direct!(conn, path, attach_opts)
+        attach_direct!(conn, path, attach_opts, state)
 
       {path, attach_opts, _conn_opts} ->
-        attach_direct!(conn, path, attach_opts)
+        attach_direct!(conn, path, attach_opts, state)
     end)
 
     # Then set database-specific configurations
     Enum.each(configs, fn {db_name, db_configs} ->
       Enum.each(db_configs, fn {option_name, option_value} ->
-        set_config_direct!(conn, db_name, option_name, option_value)
+        set_config_direct!(conn, db_name, option_name, option_value, state)
       end)
     end)
 
     # Then switch to the specified database
     if opts[:use] do
-      execute_init_query!(conn, "USE #{opts[:use]}", [])
+      execute_init_query!(conn, "USE #{opts[:use]}", [], state)
     end
 
-    # Store both db and conn references
-    state = %{db: db, conn: conn, cache: %{}}
+    # Store db, conn references, and log level
+    state = %{db: db, conn: conn, cache: %{}, log_level: log_level}
 
     {:ok, state}
   end
@@ -139,7 +161,7 @@ defmodule Duckdbex.Protocol do
     if is_map(query) and Map.has_key?(query, :__struct__) and
          query.__struct__ == Ecto.Adapters.DuckDBex.RawQuery.RawQuery do
       # Execute raw multi-statement query bypassing prepared statements
-      Logger.debug("Executing raw multi-statement query")
+      log_debug(state, "Executing raw multi-statement query")
 
       case Duckdbex.query(state.conn, query.sql) do
         {:ok, result_ref} ->
@@ -147,7 +169,7 @@ defmodule Duckdbex.Protocol do
           columns = extract_columns(result_ref)
           Duckdbex.release(result_ref)
           result = %Result{rows: rows || [], columns: columns, num_rows: length(rows || [])}
-          Logger.debug("Raw query successful")
+          log_debug(state, "Raw query successful")
           {:ok, query, result, state}
 
         {:error, err} ->
@@ -156,11 +178,11 @@ defmodule Duckdbex.Protocol do
       end
     else
       # Standard prepared statement execution
-      Logger.debug("Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}")
+      log_debug(state, "Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}")
 
       case execute_query(state.conn, query.stmt, params, cache) do
         {:ok, result} ->
-          Logger.debug("Execute successful")
+          log_debug(state, "Execute successful")
           {:ok, query, result, state}
 
         {:error, err} ->
@@ -178,7 +200,7 @@ defmodule Duckdbex.Protocol do
 
   @impl true
   def handle_prepare(query, opts, %{cache: cache} = state) do
-    Logger.debug("Preparing query: #{inspect(query.query)}")
+    log_debug(state, "Preparing query: #{inspect(query.query)}")
 
     # FIXME: Disable this when DuckLake supports PRIMARY KEYs
     # https://github.com/duckdb/ducklake/discussions/323
@@ -186,7 +208,7 @@ defmodule Duckdbex.Protocol do
     # If so, remove the PRIMARY KEY constraint
     fixed_query_str =
       if should_fix_ducklake_primary_key?(opts) do
-        Logger.debug("Removed non-supported 'PRIMARY KEY' from query for DuckLake database")
+        log_debug(state, "Removed non-supported 'PRIMARY KEY' from query for DuckLake database")
 
         query.query
         |> String.replace("BIGINT PRIMARY KEY", "BIGINT NOT NULL")
@@ -202,7 +224,7 @@ defmodule Duckdbex.Protocol do
       {:ok, stmt_ref} ->
         # Use the reference itself as the cache key
         new_cache = Map.put(cache, stmt_ref, stmt_ref)
-        Logger.debug("Query prepared with stmt_ref: #{inspect(stmt_ref)}")
+        log_debug(state, "Query prepared with stmt_ref: #{inspect(stmt_ref)}")
         {:ok, %{query | stmt: stmt_ref}, %{state | cache: new_cache}}
 
       {:error, err} ->
@@ -303,7 +325,7 @@ defmodule Duckdbex.Protocol do
   ## ------------------------------------------------------------------
 
   # Execute a query during connection initialization
-  defp execute_init_query!(conn, sql, params) do
+  defp execute_init_query!(conn, sql, params, state) do
     result = if params == [] do
       Duckdbex.query(conn, sql)
     else
@@ -314,7 +336,7 @@ defmodule Duckdbex.Protocol do
       {:ok, result_ref} ->
         Duckdbex.fetch_all(result_ref)
         Duckdbex.release(result_ref)
-        Logger.debug("Executed init query: #{sql}")
+        log_debug(state, "Executed init query: #{sql}")
         :ok
 
       {:error, reason} ->
@@ -324,9 +346,9 @@ defmodule Duckdbex.Protocol do
 
   # Create a DuckDB secret
   # Supports two formats:
-  # 1. Separate spec and opts: create_secret_direct!(conn, name, [username: "x", password: "y"], [type: :webdav, scope: "..."])
-  # 2. Combined single array: create_secret_direct!(conn, name, [username: "x", password: "y", type: :webdav, scope: "..."], [])
-  defp create_secret_direct!(conn, name, spec, secret_opts) do
+  # 1. Separate spec and opts: create_secret_direct!(conn, name, [username: "x", password: "y"], [type: :webdav, scope: "..."], state)
+  # 2. Combined single array: create_secret_direct!(conn, name, [username: "x", password: "y", type: :webdav, scope: "..."], [], state)
+  defp create_secret_direct!(conn, name, spec, secret_opts, state) do
     # Special keys that should be treated as secret options, not spec parameters
     secret_option_keys = [:type, :scope, :persistent]
 
@@ -351,12 +373,12 @@ defmodule Duckdbex.Protocol do
     # SCOPE goes inside the parentheses after the spec parameters
     query_sql = "CREATE #{persistent}SECRET #{name} (TYPE #{type}#{spec_part}#{scope})"
 
-    Logger.debug("Creating secret with SQL: #{query_sql}")
+    log_debug(state, "Creating secret with SQL: #{query_sql}")
 
     case Duckdbex.query(conn, query_sql) do
       {:ok, result_ref} ->
         Duckdbex.release(result_ref)
-        Logger.debug("Created secret: #{name}")
+        log_debug(state, "Created secret: #{name}")
         :ok
 
       {:error, reason} ->
@@ -365,7 +387,7 @@ defmodule Duckdbex.Protocol do
   end
 
   # Attach a database
-  defp attach_direct!(conn, path, attach_opts) do
+  defp attach_direct!(conn, path, attach_opts, state) do
     path = escape(path)
 
     val = attach_opts[:as] || attach_opts[:AS]
@@ -379,7 +401,7 @@ defmodule Duckdbex.Protocol do
     case Duckdbex.query(conn, query_sql) do
       {:ok, result_ref} ->
         Duckdbex.release(result_ref)
-        Logger.debug("Attached database: #{path}")
+        log_debug(state, "Attached database: #{path}")
         :ok
 
       {:error, reason} ->
@@ -388,7 +410,7 @@ defmodule Duckdbex.Protocol do
   end
 
   # Set database-specific configuration
-  defp set_config_direct!(conn, db_name, option_name, option_value) do
+  defp set_config_direct!(conn, db_name, option_name, option_value, state) do
     # Convert option_name from snake_case atom to lowercase string
     option_str = option_name |> to_string() |> String.downcase()
 
@@ -407,7 +429,7 @@ defmodule Duckdbex.Protocol do
     case Duckdbex.query(conn, query_sql) do
       {:ok, result_ref} ->
         Duckdbex.release(result_ref)
-        Logger.debug("Set config #{db_name}.#{option_str} = #{value_str}")
+        log_debug(state, "Set config #{db_name}.#{option_str} = #{value_str}")
         :ok
 
       {:error, reason} ->
@@ -462,11 +484,11 @@ defmodule Duckdbex.Protocol do
   #   install_extension!(conn, :httpfs)
   #   install_extension!(conn, {:parquet, source: :community, load: false})
   #   install_extension!(conn, {:httpfs, source: :nightly, force: true})
-  defp install_extension!(conn, name) when is_atom(name) do
-    install_extension!(conn, {name, []})
+  defp install_extension!(conn, name, state) when is_atom(name) do
+    install_extension!(conn, {name, []}, state)
   end
 
-  defp install_extension!(conn, {name, opts}) do
+  defp install_extension!(conn, {name, opts}, state) do
     # Build FROM clause based on source option
     from =
       case opts[:source] do
@@ -483,22 +505,22 @@ defmodule Duckdbex.Protocol do
 
     # Install the extension
     install_sql = "#{force}INSTALL #{name}#{from}"
-    Logger.debug("Installing extension: #{install_sql}")
+    log_debug(state, "Installing extension: #{install_sql}")
 
     case Duckdbex.query(conn, install_sql) do
       {:ok, result_ref} ->
         Duckdbex.release(result_ref)
-        Logger.debug("Installed extension: #{name}")
+        log_debug(state, "Installed extension: #{name}")
 
         # Load extension if requested (default: true)
         if Keyword.get(opts, :load, true) do
           load_sql = "LOAD #{name}"
-          Logger.debug("Loading extension: #{load_sql}")
+          log_debug(state, "Loading extension: #{load_sql}")
 
           case Duckdbex.query(conn, load_sql) do
             {:ok, load_result_ref} ->
               Duckdbex.release(load_result_ref)
-              Logger.debug("Loaded extension: #{name}")
+              log_debug(state, "Loaded extension: #{name}")
               :ok
 
             {:error, reason} ->
