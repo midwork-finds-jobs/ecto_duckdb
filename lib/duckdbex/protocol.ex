@@ -30,6 +30,55 @@ defmodule Duckdbex.Protocol do
     # Create connection
     {:ok, conn} = Duckdbex.connection(db)
 
+    # Process post-connection configuration similar to ecto_duck
+    secrets = opts[:secrets] || []
+    attach = opts[:attach] || []
+    configs = opts[:configs] || []
+
+    # Load required extensions before creating secrets
+    needs_webdavfs? =
+      Enum.any?(secrets, fn
+        {_name, {_spec, secret_opts}} -> secret_opts[:type] == :webdav
+        {_name, _spec} -> false
+      end)
+
+    if needs_webdavfs? do
+      # Install and load webdavfs extension for WebDAV secret support
+      execute_init_query!(conn, "INSTALL webdavfs FROM community", [])
+      execute_init_query!(conn, "LOAD webdavfs", [])
+      Logger.debug("Loaded webdavfs extension for WebDAV secret support")
+    end
+
+    # Create secrets first (they might be needed for attaching)
+    Enum.each(secrets, fn
+      {name, {spec, secret_opts}} ->
+        create_secret_direct!(conn, name, spec, secret_opts)
+
+      {name, spec} ->
+        create_secret_direct!(conn, name, spec, [])
+    end)
+
+    # Then attach databases
+    Enum.each(attach, fn
+      {path, attach_opts} ->
+        attach_direct!(conn, path, attach_opts)
+
+      {path, attach_opts, _conn_opts} ->
+        attach_direct!(conn, path, attach_opts)
+    end)
+
+    # Then set database-specific configurations
+    Enum.each(configs, fn {db_name, db_configs} ->
+      Enum.each(db_configs, fn {option_name, option_value} ->
+        set_config_direct!(conn, db_name, option_name, option_value)
+      end)
+    end)
+
+    # Then switch to the specified database
+    if opts[:use] do
+      execute_init_query!(conn, "USE #{opts[:use]}", [])
+    end
+
     # Store both db and conn references
     state = %{db: db, conn: conn, cache: %{}}
 
@@ -193,5 +242,127 @@ defmodule Duckdbex.Protocol do
     # Duckdbex doesn't provide easy column name extraction in current API
     # We'll return empty for now and rely on Ecto's schema information
     []
+  end
+
+  ## ------------------------------------------------------------------
+  ## Post-Connection Initialization Helpers
+  ## ------------------------------------------------------------------
+
+  # Execute a query during connection initialization
+  defp execute_init_query!(conn, sql, params) do
+    case Duckdbex.query(conn, sql, params) do
+      {:ok, result_ref} ->
+        Duckdbex.fetch_all(result_ref)
+        Duckdbex.release(result_ref)
+        :ok
+
+      {:error, reason} ->
+        raise Duckdbex.Error, message: "Init query failed: #{inspect(reason)}"
+    end
+  end
+
+  # Create a DuckDB secret
+  defp create_secret_direct!(conn, name, spec, secret_opts) do
+    {spec_sql, params} = format_secret_options(spec)
+    type = secret_opts[:type] || :s3
+    scope = if val = secret_opts[:scope], do: ", SCOPE '#{escape(val)}'", else: ""
+    persistent = if secret_opts[:persistent], do: "PERSISTENT ", else: ""
+
+    # Add comma between TYPE and spec_sql if spec_sql is not empty
+    spec_part = if spec_sql != "", do: ", #{spec_sql}", else: ""
+    # SCOPE goes inside the parentheses after the spec parameters
+    query_sql = "CREATE #{persistent}SECRET #{name} (TYPE #{type}#{spec_part}#{scope})"
+
+    case Duckdbex.query(conn, query_sql, params) do
+      {:ok, result_ref} ->
+        Duckdbex.release(result_ref)
+        Logger.debug("Created secret: #{name}")
+        :ok
+
+      {:error, reason} ->
+        raise Duckdbex.Error, message: "Failed to create secret #{name}: #{inspect(reason)}"
+    end
+  end
+
+  # Attach a database
+  defp attach_direct!(conn, path, attach_opts) do
+    path = escape(path)
+
+    val = attach_opts[:as] || attach_opts[:AS]
+    as = if val, do: " AS #{val}", else: ""
+
+    options = format_attach_options(attach_opts[:options])
+    options_part = if options == "", do: "", else: " (#{options})"
+
+    query_sql = "ATTACH '#{path}'#{as}#{options_part}"
+
+    case Duckdbex.query(conn, query_sql) do
+      {:ok, result_ref} ->
+        Duckdbex.release(result_ref)
+        Logger.debug("Attached database: #{path}")
+        :ok
+
+      {:error, reason} ->
+        raise Duckdbex.Error, message: "Failed to attach database #{path}: #{inspect(reason)}"
+    end
+  end
+
+  # Set database-specific configuration
+  defp set_config_direct!(conn, db_name, option_name, option_value) do
+    # Convert option_name from snake_case atom to lowercase string
+    option_str = option_name |> to_string() |> String.downcase()
+
+    # Format the value based on its type
+    value_str =
+      cond do
+        is_atom(option_value) -> "'#{option_value}'"
+        is_binary(option_value) -> "'#{escape(option_value)}'"
+        is_number(option_value) -> "#{option_value}"
+        true -> "'#{option_value}'"
+      end
+
+    # Use the CALL db.set_option() syntax for database-specific settings
+    query_sql = "CALL #{db_name}.set_option('#{option_str}', #{value_str})"
+
+    case Duckdbex.query(conn, query_sql) do
+      {:ok, result_ref} ->
+        Duckdbex.release(result_ref)
+        Logger.debug("Set config #{db_name}.#{option_str} = #{value_str}")
+        :ok
+
+      {:error, reason} ->
+        raise Duckdbex.Error, message: "Failed to set config #{db_name}.#{option_str}: #{inspect(reason)}"
+    end
+  end
+
+  # Helper to escape SQL string values
+  defp escape(val), do: String.replace(to_string(val), "'", "''")
+
+  # Format attach options for ATTACH statement
+  defp format_attach_options(nil), do: ""
+
+  defp format_attach_options(opts) do
+    opts
+    |> Enum.flat_map(fn
+      {_key, false} -> []
+      {key, true} -> ["#{key}"]
+      {key, value} when is_atom(value) or is_number(value) -> ["#{key} #{value}"]
+      {key, value} -> ["#{key} '#{escape(value)}'"]
+    end)
+    |> Enum.join(", ")
+  end
+
+  # Format secret options for CREATE SECRET statement
+  defp format_secret_options(opts) do
+    {query, params} =
+      Enum.map_reduce(opts, [], fn
+        {name, val}, acc when is_atom(val) ->
+          {"#{name} #{val}", acc}
+
+        {name, val}, acc ->
+          {"#{name} ?", [val | acc]}
+      end)
+
+    {Enum.join(query, ", "), Enum.reverse(params)}
   end
 end
