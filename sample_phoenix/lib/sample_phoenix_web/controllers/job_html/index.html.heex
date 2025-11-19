@@ -1,0 +1,18 @@
+<Layouts.app flash={@flash}>
+  <.header>
+    Listing Jobs
+    <:actions>
+      <.button href={~p"/jobs/new"}>
+        <.icon name="hero-plus" /> New Job
+      </.button>
+    </:actions>
+  </.header>
+
+  <.table id="jobs" rows={@jobs}>
+    <:col :let={job} label="URL">
+      <.link href={job.url} target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+        {job.url}
+      </.link>
+    </:col>
+  </.table>
+</Layouts.app>
