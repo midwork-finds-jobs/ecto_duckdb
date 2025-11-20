@@ -3,7 +3,7 @@ defmodule SamplePhoenix.Demo do
   Demo module to test DuckDB with Phoenix.
   """
 
-  alias SamplePhoenix.{Repo, Blog.Post}
+  alias SamplePhoenix.{Blog.Post, Repo}
   import Ecto.Query
 
   def run do

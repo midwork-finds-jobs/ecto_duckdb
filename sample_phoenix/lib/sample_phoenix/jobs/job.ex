@@ -1,4 +1,6 @@
 defmodule SamplePhoenix.Jobs.Job do
+  @moduledoc "Schema for Job listings from Lever API"
+
   use Ecto.Schema
   import Ecto.Changeset
 

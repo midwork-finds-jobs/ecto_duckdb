@@ -1,4 +1,6 @@
 defmodule SamplePhoenix.Blog.Post do
+  @moduledoc "Schema for blog posts"
+
   use Ecto.Schema
   import Ecto.Changeset
 
