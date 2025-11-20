@@ -1,14 +1,6 @@
 ExUnit.start()
 
-# Clean up any existing test database
-test_db = "test/test.duckdb"
-File.rm(test_db)
-File.rm(test_db <> ".wal")
-
-# Create test database
-_ = Ecto.Adapters.DuckDB.storage_up(EctoDuckdb.TestRepo.config())
-
-# Start the repo
+# Start the repo (in-memory database, no cleanup needed)
 {:ok, _pid} = EctoDuckdb.TestRepo.start_link()
 
 # Run migrations

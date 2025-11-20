@@ -22,6 +22,18 @@
       entry = "mix format --check-formatted";
       files = "\\.(ex|exs|heex)$";
     };
+    credo = {
+      enable = true;
+      name = "mix credo";
+      entry = "mix credo";
+      files = "\\.(ex|exs|heex)$";
+    };
+    mix-test = {
+      enable = true;
+      name = "mix test";
+      entry = "mix test";
+      files = "\\.(ex|exs|heex)$";
+    };
     # Nix files
     nixfmt-rfc-style.enable = true;
     # Github Actions
