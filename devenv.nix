@@ -33,7 +33,10 @@
       name = "mix test";
       entry = "mix test";
       files = "\\.(ex|exs|heex)$";
-      excludes = [ "^sample_phoenix/" ];
+      excludes = [
+        "^sample_phoenix/"
+        "^mix.exs$"
+      ];
     };
     # Nix files
     nixfmt-rfc-style.enable = true;
@@ -49,9 +52,8 @@
         MD033 = false;
       };
     };
+
     # Leaking secrets
     ripsecrets.enable = true;
-
-    trufflehog.enable = true;
   };
 }
