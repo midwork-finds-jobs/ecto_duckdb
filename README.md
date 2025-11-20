@@ -21,6 +21,7 @@ This project provides:
 - ✅ Advanced DuckDB features (secrets, attach, configs, USE)
 - ✅ Sample Phoenix project with DuckLake + WebDAV remote storage
 - 🚫 `HUGEINT` (128bit integer) is not yet supported [because they require extra conversions](https://github.com/AlexR2D2/duckdbex?tab=readme-ov-file#huge-numbers-hugeint)
+- 🚫 Many datatypes and expressions are copied directly from [ecto_sqlite3](https://github.com/elixir-sqlite/ecto_sqlite3). DuckDB actually supports very complex features and helping is needed with finishing [data_type.ex](./lib/ecto/adapters/duckdb/data_type.ex) and [connection.ex](./lib/ecto/adapters/duckdb/connection.ex) to get all that [sweet functionality to ecto](https://duckdb.org/docs/stable/sql/introduction).
 
 ## Installation
 
