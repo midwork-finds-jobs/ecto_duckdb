@@ -13,6 +13,7 @@ defmodule EctoDuckDB.MixProject do
       homepage_url: "https://github.com/midwork-finds-jobs/ecto_duckdb",
       deps: deps(),
       description: description(),
+      elixirc_options: [warnings_as_errors: true],
       elixirc_paths: elixirc_paths(Mix.env()),
 
       # Docs
