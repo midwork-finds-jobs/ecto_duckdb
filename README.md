@@ -343,6 +343,8 @@ lib/
 
 ## Development
 
+### Local Development
+
 ```bash
 # Get dependencies
 mix deps.get
@@ -353,10 +355,44 @@ mix test
 # Format code
 mix format
 
+# Run linting
+mix credo suggest --all
+
 # Run sample Phoenix app
 cd sample_phoenix
 mix phx.server
 ```
+
+### Continuous Integration
+
+This project uses GitHub Actions for CI/CD. The workflow runs on every push to `main` and on pull requests:
+
+**Checks performed:**
+
+- ✅ Code formatting (`mix format --check-formatted`)
+- ✅ Linting with Credo (suggest and strict modes)
+- ✅ Compilation with warnings as errors
+- ✅ Full test suite
+- ✅ Sample Phoenix migrations verification
+- ✅ Migration reversibility check
+
+**Running CI checks locally:**
+
+```bash
+# All checks in one go
+mix format --check-formatted && \
+  mix credo suggest --all && \
+  mix compile --warnings-as-errors && \
+  mix test
+
+# Verify sample_phoenix migrations
+cd sample_phoenix
+mix ecto.migrate --pool-size 1
+mix ecto.rollback --all --pool-size 1
+mix ecto.migrate --pool-size 1
+```
+
+See [`.github/workflows/README.md`](.github/workflows/README.md) for more details.
 
 ## Credits
 

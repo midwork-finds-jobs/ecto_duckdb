@@ -1,9 +1,9 @@
-defmodule Ecto.Adapters.DuckDBexTest do
+defmodule Ecto.Adapters.DuckDBTest do
   use ExUnit.Case, async: false
 
-  alias EctoDuckdbex.TestRepo
-  alias EctoDuckdbex.User
-  alias EctoDuckdbex.Post
+  alias EctoDuckdb.Post
+  alias EctoDuckdb.TestRepo
+  alias EctoDuckdb.User
 
   setup do
     # Clean up tables before each test
@@ -28,7 +28,8 @@ defmodule Ecto.Adapters.DuckDBexTest do
     end
 
     test "update user" do
-      {:ok, user} = TestRepo.insert(User.changeset(%User{}, %{email: "test@example.com", name: "Test"}))
+      {:ok, user} =
+        TestRepo.insert(User.changeset(%User{}, %{email: "test@example.com", name: "Test"}))
 
       changeset = User.changeset(user, %{name: "Updated"})
       assert {:ok, updated} = TestRepo.update(changeset)
@@ -49,14 +50,16 @@ defmodule Ecto.Adapters.DuckDBexTest do
 
   describe "associations" do
     test "create post with user association" do
-      {:ok, user} = TestRepo.insert(User.changeset(%User{}, %{email: "author@example.com", name: "Author"}))
+      {:ok, user} =
+        TestRepo.insert(User.changeset(%User{}, %{email: "author@example.com", name: "Author"}))
 
-      post_changeset = Post.changeset(%Post{}, %{
-        title: "My Post",
-        body: "Post content",
-        published: true,
-        user_id: user.id
-      })
+      post_changeset =
+        Post.changeset(%Post{}, %{
+          title: "My Post",
+          body: "Post content",
+          published: true,
+          user_id: user.id
+        })
 
       assert {:ok, post} = TestRepo.insert(post_changeset)
       assert post.user_id == user.id
@@ -64,19 +67,26 @@ defmodule Ecto.Adapters.DuckDBexTest do
     end
 
     test "preload associations" do
-      {:ok, user} = TestRepo.insert(User.changeset(%User{}, %{email: "author@example.com", name: "Author"}))
+      {:ok, user} =
+        TestRepo.insert(User.changeset(%User{}, %{email: "author@example.com", name: "Author"}))
 
-      {:ok, _post1} = TestRepo.insert(Post.changeset(%Post{}, %{
-        title: "Post 1",
-        body: "Content 1",
-        user_id: user.id
-      }))
+      {:ok, _post1} =
+        TestRepo.insert(
+          Post.changeset(%Post{}, %{
+            title: "Post 1",
+            body: "Content 1",
+            user_id: user.id
+          })
+        )
 
-      {:ok, _post2} = TestRepo.insert(Post.changeset(%Post{}, %{
-        title: "Post 2",
-        body: "Content 2",
-        user_id: user.id
-      }))
+      {:ok, _post2} =
+        TestRepo.insert(
+          Post.changeset(%Post{}, %{
+            title: "Post 2",
+            body: "Content 2",
+            user_id: user.id
+          })
+        )
 
       # Preload posts
       user_with_posts = TestRepo.get(User, user.id) |> TestRepo.preload(:posts)
@@ -86,12 +96,19 @@ defmodule Ecto.Adapters.DuckDBexTest do
 
   describe "queries" do
     test "query with where clause" do
-      {:ok, user1} = TestRepo.insert(User.changeset(%User{}, %{email: "alice@example.com", name: "Alice", age: 25}))
-      {:ok, _user2} = TestRepo.insert(User.changeset(%User{}, %{email: "bob@example.com", name: "Bob", age: 35}))
+      {:ok, user1} =
+        TestRepo.insert(
+          User.changeset(%User{}, %{email: "alice@example.com", name: "Alice", age: 25})
+        )
+
+      {:ok, _user2} =
+        TestRepo.insert(
+          User.changeset(%User{}, %{email: "bob@example.com", name: "Bob", age: 35})
+        )
 
       import Ecto.Query
 
-      young_users = TestRepo.all(from u in User, where: u.age < 30)
+      young_users = TestRepo.all(from(u in User, where: u.age < 30))
       assert length(young_users) == 1
       assert hd(young_users).id == user1.id
     end
@@ -103,7 +120,7 @@ defmodule Ecto.Adapters.DuckDBexTest do
 
       import Ecto.Query
 
-      result = TestRepo.one(from u in User, select: avg(u.age))
+      result = TestRepo.one(from(u in User, select: avg(u.age)))
       # DuckDB returns float for avg()
       assert result == 30.0
     end
@@ -111,27 +128,35 @@ defmodule Ecto.Adapters.DuckDBexTest do
 
   describe "transactions" do
     test "successful transaction" do
-      result = TestRepo.transaction(fn ->
-        {:ok, user} = TestRepo.insert(User.changeset(%User{}, %{email: "tx@example.com", name: "TX User"}))
-        user
-      end)
+      result =
+        TestRepo.transaction(fn ->
+          {:ok, user} =
+            TestRepo.insert(User.changeset(%User{}, %{email: "tx@example.com", name: "TX User"}))
+
+          user
+        end)
 
       assert {:ok, user} = result
       assert TestRepo.get(User, user.id)
     end
 
     test "rollback transaction" do
-      result = TestRepo.transaction(fn ->
-        {:ok, user} = TestRepo.insert(User.changeset(%User{}, %{email: "rollback@example.com", name: "Rollback User"}))
-        TestRepo.rollback(:oops)
-        user
-      end)
+      result =
+        TestRepo.transaction(fn ->
+          {:ok, user} =
+            TestRepo.insert(
+              User.changeset(%User{}, %{email: "rollback@example.com", name: "Rollback User"})
+            )
+
+          TestRepo.rollback(:oops)
+          user
+        end)
 
       assert {:error, :oops} = result
 
       # User should not exist
       import Ecto.Query
-      assert [] = TestRepo.all(from u in User, where: u.email == "rollback@example.com")
+      assert [] = TestRepo.all(from(u in User, where: u.email == "rollback@example.com"))
     end
   end
 
@@ -144,7 +169,8 @@ defmodule Ecto.Adapters.DuckDBexTest do
       assert NaiveDateTime.compare(user.inserted_at, user.updated_at) == :eq
 
       # Update and check updated_at changes
-      Process.sleep(10)  # Ensure some time passes
+      # Ensure some time passes
+      Process.sleep(10)
       changeset = User.changeset(user, %{name: "Updated Name"})
       {:ok, updated_user} = TestRepo.update(changeset)
 

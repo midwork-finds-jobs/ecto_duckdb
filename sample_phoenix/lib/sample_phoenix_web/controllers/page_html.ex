@@ -6,5 +6,5 @@ defmodule SamplePhoenixWeb.PageHTML do
   """
   use SamplePhoenixWeb, :html
 
-  embed_templates "page_html/*"
+  embed_templates("page_html/*")
 end

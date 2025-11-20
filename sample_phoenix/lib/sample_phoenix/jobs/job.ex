@@ -5,7 +5,7 @@ defmodule SamplePhoenix.Jobs.Job do
   @primary_key false
 
   schema "jobs" do
-    field :url, :string
+    field(:url, :string)
     # Note: DuckLake doesn't support timestamps with default values
     # https://github.com/duckdb/ducklake/issues/297
   end

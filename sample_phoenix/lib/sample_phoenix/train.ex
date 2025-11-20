@@ -14,23 +14,23 @@ defmodule SamplePhoenix.Train do
   @timestamps_opts [type: :utc_datetime]
 
   schema "trains" do
-    field :service_number, :integer
-    field :station_code, :string
-    field :service_type_code, :string
-    field :company_code, :integer
-    field :service_type_description, :string
-    field :company_name, :string
-    field :service_parts, :string
-    field :stop_type_code, :string
-    field :stop_type_description, :string
-    field :departure_time, :time
-    field :arrival_time, :time
-    field :arrival_delay_minutes, :integer
-    field :departure_delay_minutes, :integer
-    field :canceled, :boolean
-    field :route_text, :string
-    field :platform, :string
-    field :platform_changed, :boolean
+    field(:service_number, :integer)
+    field(:station_code, :string)
+    field(:service_type_code, :string)
+    field(:company_code, :integer)
+    field(:service_type_description, :string)
+    field(:company_name, :string)
+    field(:service_parts, :string)
+    field(:stop_type_code, :string)
+    field(:stop_type_description, :string)
+    field(:departure_time, :time)
+    field(:arrival_time, :time)
+    field(:arrival_delay_minutes, :integer)
+    field(:departure_delay_minutes, :integer)
+    field(:canceled, :boolean)
+    field(:route_text, :string)
+    field(:platform, :string)
+    field(:platform_changed, :boolean)
 
     timestamps(type: :utc_datetime)
   end
@@ -64,51 +64,56 @@ defmodule SamplePhoenix.Train do
   Get all trains for a specific station.
   """
   def by_station(station_code) do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       where: t.station_code == ^station_code,
       order_by: [desc: t.departure_time]
+    )
   end
 
   @doc """
   Get delayed trains (arrival or departure delay > 0).
   """
   def delayed do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       where: t.arrival_delay_minutes > 0 or t.departure_delay_minutes > 0,
       order_by: [desc: t.departure_delay_minutes]
+    )
   end
 
   @doc """
   Get canceled trains.
   """
   def canceled do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       where: t.canceled == true
+    )
   end
 
   @doc """
   Get trains by service number.
   """
   def by_service_number(service_number) do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       where: t.service_number == ^service_number,
       order_by: [asc: t.departure_time]
+    )
   end
 
   @doc """
   Get trains departing within a time range.
   """
   def departing_between(start_time, end_time) do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       where: t.departure_time >= ^start_time and t.departure_time <= ^end_time,
       order_by: [asc: t.departure_time]
+    )
   end
 
   @doc """
   Analytics query: Get average delays by station.
   """
   def average_delays_by_station do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       group_by: t.station_code,
       select: %{
         station_code: t.station_code,
@@ -117,21 +122,28 @@ defmodule SamplePhoenix.Train do
         total_trains: count(t.id)
       },
       order_by: [desc: avg(t.departure_delay_minutes)]
+    )
   end
 
   @doc """
   Analytics query: Get platform change statistics.
   """
   def platform_change_stats do
-    from t in __MODULE__,
+    from(t in __MODULE__,
       where: not is_nil(t.platform_changed),
       group_by: t.station_code,
       select: %{
         station_code: t.station_code,
         total_trains: count(t.id),
-        platform_changes: fragment("CAST(SUM(CASE WHEN ? THEN 1 ELSE 0 END) AS INTEGER)", t.platform_changed),
-        change_percentage: fragment("(SUM(CASE WHEN ? THEN 1 ELSE 0 END) * 100.0 / COUNT(*))", t.platform_changed)
+        platform_changes:
+          fragment("CAST(SUM(CASE WHEN ? THEN 1 ELSE 0 END) AS INTEGER)", t.platform_changed),
+        change_percentage:
+          fragment("(SUM(CASE WHEN ? THEN 1 ELSE 0 END) * 100.0 / COUNT(*))", t.platform_changed)
       },
-      order_by: [desc: fragment("(SUM(CASE WHEN ? THEN 1 ELSE 0 END) * 100.0 / COUNT(*))", t.platform_changed)]
+      order_by: [
+        desc:
+          fragment("(SUM(CASE WHEN ? THEN 1 ELSE 0 END) * 100.0 / COUNT(*))", t.platform_changed)
+      ]
+    )
   end
 end

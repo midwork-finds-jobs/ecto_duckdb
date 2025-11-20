@@ -27,12 +27,13 @@ defmodule Duckdbex.Protocol do
     # Determine log level based on :log option
     # false = no debug logging, true/:debug = debug logging
     # :info/:warning/:error = only log at that level or higher
-    log_level = case opts[:log] do
-      false -> :none
-      true -> :debug
-      level when level in [:debug, :info, :warning, :error] -> level
-      _ -> :debug
-    end
+    log_level =
+      case opts[:log] do
+        false -> :none
+        true -> :debug
+        level when level in [:debug, :info, :warning, :error] -> level
+        _ -> :debug
+      end
 
     state = %{log_level: log_level}
     log_debug(state, "Initiating connect: #{inspect(opts)}")
@@ -43,11 +44,12 @@ defmodule Duckdbex.Protocol do
     database = if database == :memory, do: nil, else: database
 
     # Open database
-    {:ok, db} = if database do
-      Duckdbex.open(database)
-    else
-      Duckdbex.open()
-    end
+    {:ok, db} =
+      if database do
+        Duckdbex.open(database)
+      else
+        Duckdbex.open()
+      end
 
     # Create connection
     {:ok, conn} = Duckdbex.connection(db)
@@ -178,7 +180,10 @@ defmodule Duckdbex.Protocol do
       end
     else
       # Standard prepared statement execution
-      log_debug(state, "Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}")
+      log_debug(
+        state,
+        "Executing query with stmt: #{inspect(query.stmt)}, params: #{inspect(params)}"
+      )
 
       case execute_query(state.conn, query.stmt, params, cache) do
         {:ok, result} ->
@@ -293,11 +298,12 @@ defmodule Duckdbex.Protocol do
   end
 
   defp execute_query(_conn, stmt_ref, params, _cache) when is_reference(stmt_ref) do
-    result = if params == [] do
-      Duckdbex.execute_statement(stmt_ref)
-    else
-      Duckdbex.execute_statement(stmt_ref, params)
-    end
+    result =
+      if params == [] do
+        Duckdbex.execute_statement(stmt_ref)
+      else
+        Duckdbex.execute_statement(stmt_ref, params)
+      end
 
     case result do
       {:ok, result_ref} ->
@@ -326,11 +332,12 @@ defmodule Duckdbex.Protocol do
 
   # Execute a query during connection initialization
   defp execute_init_query!(conn, sql, params, state) do
-    result = if params == [] do
-      Duckdbex.query(conn, sql)
-    else
-      Duckdbex.query(conn, sql, params)
-    end
+    result =
+      if params == [] do
+        Duckdbex.query(conn, sql)
+      else
+        Duckdbex.query(conn, sql, params)
+      end
 
     case result do
       {:ok, result_ref} ->
@@ -356,7 +363,9 @@ defmodule Duckdbex.Protocol do
     {final_spec, final_opts} =
       if secret_opts == [] && Enum.any?(spec, fn {k, _v} -> k in secret_option_keys end) do
         # Split spec into actual spec parameters and secret options
-        {spec_params, opts_params} = Enum.split_with(spec, fn {k, _v} -> k not in secret_option_keys end)
+        {spec_params, opts_params} =
+          Enum.split_with(spec, fn {k, _v} -> k not in secret_option_keys end)
+
         {spec_params, opts_params}
       else
         # Use as-is (original format with separate arrays)
@@ -391,6 +400,7 @@ defmodule Duckdbex.Protocol do
         - Ensure required extensions are installed (webdavfs for WebDAV)
         - Verify credentials are correct
         """
+
         raise Duckdbex.Error, message: error_msg
     end
   end
@@ -424,6 +434,7 @@ defmodule Duckdbex.Protocol do
         - Verify DATA_PATH option is correct if using remote storage
         - Check file permissions
         """
+
         raise Duckdbex.Error, message: error_msg
     end
   end
@@ -461,6 +472,7 @@ defmodule Duckdbex.Protocol do
         - Ensure option value type is correct (string, number, atom)
         - Verify the database supports configuration changes
         """
+
         raise Duckdbex.Error, message: error_msg
     end
   end
@@ -560,6 +572,7 @@ defmodule Duckdbex.Protocol do
               - Check if extension is compatible with your DuckDB version
               - Verify extension binary is not corrupted
               """
+
               raise Duckdbex.Error, message: error_msg
           end
         else
@@ -577,6 +590,7 @@ defmodule Duckdbex.Protocol do
         - Try with :force option to reinstall
         - Check DuckDB extension compatibility
         """
+
         raise Duckdbex.Error, message: error_msg
     end
   end

@@ -3,10 +3,10 @@ defmodule EctoDuckdb.User do
   import Ecto.Changeset
 
   schema "users" do
-    field :name, :string
-    field :email, :string
-    field :age, :integer
-    has_many :posts, EctoDuckdb.Post
+    field(:name, :string)
+    field(:email, :string)
+    field(:age, :integer)
+    has_many(:posts, EctoDuckdb.Post)
     timestamps()
   end
 
@@ -23,10 +23,10 @@ defmodule EctoDuckdb.Post do
   import Ecto.Changeset
 
   schema "posts" do
-    field :title, :string
-    field :body, :string
-    field :published, :boolean, default: false
-    belongs_to :user, EctoDuckdb.User
+    field(:title, :string)
+    field(:body, :string)
+    field(:published, :boolean, default: false)
+    belongs_to(:user, EctoDuckdb.User)
     timestamps()
   end
 

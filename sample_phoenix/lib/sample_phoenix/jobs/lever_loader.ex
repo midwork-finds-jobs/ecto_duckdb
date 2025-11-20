@@ -30,10 +30,12 @@ defmodule SamplePhoenix.Jobs.LeverLoader do
   def load(opts \\ []) do
     cc_index = Keyword.get(opts, :cc_index, "CC-MAIN-2025-43")
     clear_existing = Keyword.get(opts, :clear_existing, true)
-    patterns = Keyword.get(opts, :patterns, [
-      "https://jobs.lever.co/*",
-      "https://jobs.eu.lever.co/*"
-    ])
+
+    patterns =
+      Keyword.get(opts, :patterns, [
+        "https://jobs.lever.co/*",
+        "https://jobs.eu.lever.co/*"
+      ])
 
     IO.puts("\n=== Loading Lever Job URLs from Common Crawl ===\n")
 
@@ -75,10 +77,12 @@ defmodule SamplePhoenix.Jobs.LeverLoader do
   """
   def fetch_lever_urls(opts \\ []) do
     cc_index = Keyword.get(opts, :cc_index, "CC-MAIN-2025-43")
-    patterns = Keyword.get(opts, :patterns, [
-      "https://jobs.lever.co/*",
-      "https://jobs.eu.lever.co/*"
-    ])
+
+    patterns =
+      Keyword.get(opts, :patterns, [
+        "https://jobs.lever.co/*",
+        "https://jobs.eu.lever.co/*"
+      ])
 
     setup_extensions()
     create_common_crawl_macro(cc_index)
@@ -127,9 +131,10 @@ defmodule SamplePhoenix.Jobs.LeverLoader do
     IO.puts("   This may take a minute...\n")
 
     # Build UNION ALL query for all patterns
-    queries = Enum.map(patterns, fn pattern ->
-      "SELECT url FROM common_crawl('#{pattern}')"
-    end)
+    queries =
+      Enum.map(patterns, fn pattern ->
+        "SELECT url FROM common_crawl('#{pattern}')"
+      end)
 
     sql = Enum.join(queries, "\nUNION ALL\n")
 
@@ -149,7 +154,9 @@ defmodule SamplePhoenix.Jobs.LeverLoader do
 
     Enum.each(urls, fn url ->
       case Jobs.create_job(%{url: url}) do
-        {:ok, _job} -> :ok
+        {:ok, _job} ->
+          :ok
+
         {:error, changeset} ->
           IO.puts("⚠️  Failed to insert #{url}: #{inspect(changeset.errors)}")
       end

@@ -160,9 +160,11 @@ defmodule SamplePhoenix.TrainDemo do
 
     trains = DuckLakeRepo.all(Train)
     IO.puts("   Found #{length(trains)} trains")
+
     Enum.each(trains, fn train ->
       IO.puts("   - Service #{train.service_number} at #{train.station_code}")
     end)
+
     IO.puts("")
   end
 
@@ -172,9 +174,11 @@ defmodule SamplePhoenix.TrainDemo do
 
     trains = DuckLakeRepo.all(Train.by_station("AMS"))
     IO.puts("   Found #{length(trains)} trains at Amsterdam")
+
     Enum.each(trains, fn train ->
       IO.puts("   - Service #{train.service_number}: #{train.route_text}")
     end)
+
     IO.puts("")
   end
 
@@ -184,9 +188,13 @@ defmodule SamplePhoenix.TrainDemo do
 
     trains = DuckLakeRepo.all(Train.delayed())
     IO.puts("   Found #{length(trains)} delayed trains")
+
     Enum.each(trains, fn train ->
-      IO.puts("   - Service #{train.service_number} at #{train.station_code}: +#{train.departure_delay_minutes} min")
+      IO.puts(
+        "   - Service #{train.service_number} at #{train.station_code}: +#{train.departure_delay_minutes} min"
+      )
     end)
+
     IO.puts("")
   end
 
@@ -196,28 +204,34 @@ defmodule SamplePhoenix.TrainDemo do
 
     trains = DuckLakeRepo.all(Train.canceled())
     IO.puts("   Found #{length(trains)} canceled trains")
+
     Enum.each(trains, fn train ->
       IO.puts("   - Service #{train.service_number}: #{train.route_text}")
     end)
+
     IO.puts("")
   end
 
   defp example_raw_sql do
     IO.puts("5️⃣ Raw SQL query:")
+
     sql = """
     SELECT station_code, COUNT(*) as train_count
     FROM trains
     GROUP BY station_code
     ORDER BY train_count DESC
     """
+
     IO.puts("   DuckLakeRepo.query!(\"#{String.replace(sql, "\n", " ")}\")\n")
 
     result = DuckLakeRepo.query!(sql)
     IO.puts("   Columns: #{inspect(result.columns)}")
     IO.puts("   Rows:")
+
     Enum.each(result.rows, fn [station, count] ->
       IO.puts("   - #{station}: #{count} trains")
     end)
+
     IO.puts("")
   end
 
@@ -227,11 +241,16 @@ defmodule SamplePhoenix.TrainDemo do
 
     stats = DuckLakeRepo.all(Train.average_delays_by_station())
     IO.puts("   Station delay statistics:")
+
     Enum.each(stats, fn stat ->
       avg_arr = if stat.avg_arrival_delay, do: Float.round(stat.avg_arrival_delay, 1), else: 0
       avg_dep = if stat.avg_departure_delay, do: Float.round(stat.avg_departure_delay, 1), else: 0
-      IO.puts("   - #{stat.station_code}: Avg arrival delay: #{avg_arr} min, Avg departure delay: #{avg_dep} min (#{stat.total_trains} trains)")
+
+      IO.puts(
+        "   - #{stat.station_code}: Avg arrival delay: #{avg_arr} min, Avg departure delay: #{avg_dep} min (#{stat.total_trains} trains)"
+      )
     end)
+
     IO.puts("")
   end
 
@@ -241,15 +260,21 @@ defmodule SamplePhoenix.TrainDemo do
 
     stats = DuckLakeRepo.all(Train.platform_change_stats())
     IO.puts("   Platform change statistics:")
+
     Enum.each(stats, fn stat ->
       change_pct = if stat.change_percentage, do: Float.round(stat.change_percentage, 1), else: 0
-      IO.puts("   - #{stat.station_code}: #{stat.platform_changes}/#{stat.total_trains} changes (#{change_pct}%)")
+
+      IO.puts(
+        "   - #{stat.station_code}: #{stat.platform_changes}/#{stat.total_trains} changes (#{change_pct}%)"
+      )
     end)
+
     IO.puts("")
   end
 
   defp example_complex_query do
     IO.puts("8️⃣ Complex query: Trains with significant delays:")
+
     IO.puts("""
        query = from t in Train,
          where: t.departure_delay_minutes > 5,
@@ -265,21 +290,27 @@ defmodule SamplePhoenix.TrainDemo do
 
     """)
 
-    query = from t in Train,
-      where: t.departure_delay_minutes > 5,
-      select: %{
-        service: t.service_number,
-        station: t.station_code,
-        delay: t.departure_delay_minutes,
-        route: t.route_text
-      },
-      order_by: [desc: t.departure_delay_minutes]
+    query =
+      from(t in Train,
+        where: t.departure_delay_minutes > 5,
+        select: %{
+          service: t.service_number,
+          station: t.station_code,
+          delay: t.departure_delay_minutes,
+          route: t.route_text
+        },
+        order_by: [desc: t.departure_delay_minutes]
+      )
 
     results = DuckLakeRepo.all(query)
     IO.puts("   Found #{length(results)} trains with delays > 5 minutes:")
+
     Enum.each(results, fn result ->
-      IO.puts("   - Service #{result.service} at #{result.station}: +#{result.delay} min (#{result.route})")
+      IO.puts(
+        "   - Service #{result.service} at #{result.station}: +#{result.delay} min (#{result.route})"
+      )
     end)
+
     IO.puts("")
   end
 end

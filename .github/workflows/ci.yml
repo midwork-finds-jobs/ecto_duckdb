@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  MIX_ENV: test
+  ELIXIR_VERSION: '1.15'
+  OTP_VERSION: '26'
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
+
+    - name: Cache deps
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-
+
+    - name: Install dependencies
+      run: mix deps.get
+
+    - name: Check formatting
+      run: mix format --check-formatted
+
+    - name: Run Credo (non-blocking)
+      run: mix credo suggest --all || true
+
+    - name: Run Credo (strict - warnings only)
+      run: mix credo --strict --mute-exit-status
+
+    - name: Compile with warnings as errors
+      run: mix compile --warnings-as-errors
+
+    - name: Run tests
+      run: mix test
+
+  sample_phoenix:
+    name: Sample Phoenix - Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
+
+    - name: Cache root deps
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-mix-root-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-root-
+
+    - name: Cache sample_phoenix deps
+      uses: actions/cache@v4
+      with:
+        path: |
+          sample_phoenix/deps
+          sample_phoenix/_build
+        key: ${{ runner.os }}-mix-sample-${{ hashFiles('sample_phoenix/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-sample-
+
+    - name: Install root dependencies
+      run: mix deps.get
+
+    - name: Compile root project
+      run: mix compile
+
+    - name: Install sample_phoenix dependencies
+      working-directory: sample_phoenix
+      run: mix deps.get
+
+    - name: Compile sample_phoenix
+      working-directory: sample_phoenix
+      run: mix compile
+
+    - name: Run migrations
+      working-directory: sample_phoenix
+      run: mix ecto.migrate --pool-size 1
+
+    - name: Verify migrations are reversible
+      working-directory: sample_phoenix
+      run: |
+        mix ecto.rollback --all --pool-size 1
+        mix ecto.migrate --pool-size 1
+
+    - name: Check for migration warnings
+      working-directory: sample_phoenix
+      run: mix ecto.migrate --pool-size 1 2>&1 | grep -q "Migrations already up" || exit 1

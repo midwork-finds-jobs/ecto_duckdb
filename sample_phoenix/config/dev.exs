@@ -32,7 +32,8 @@ config :sample_phoenix, SamplePhoenix.Repo,
 #    Full DuckLake with WebDAV remote storage
 
 # Check if WebDAV credentials are available
-webdav_enabled = System.get_env("STORAGEBOX_USER") != nil && System.get_env("STORAGEBOX_PASSWORD") != nil
+webdav_enabled =
+  System.get_env("STORAGEBOX_USER") != nil && System.get_env("STORAGEBOX_PASSWORD") != nil
 
 # Base configuration for DuckLake
 base_ducklake_config = [
@@ -47,62 +48,65 @@ base_ducklake_config = [
 ]
 
 # Advanced WebDAV configuration (only if credentials are set)
-advanced_ducklake_config = if webdav_enabled do
-  storagebox_user = require_env.("STORAGEBOX_USER")
-  storagebox_password = require_env.("STORAGEBOX_PASSWORD")
+advanced_ducklake_config =
+  if webdav_enabled do
+    storagebox_user = require_env.("STORAGEBOX_USER")
+    storagebox_password = require_env.("STORAGEBOX_PASSWORD")
 
-  [
-    # Install and load DuckDB extensions for remote storage
-    extensions: [
-      :httpfs,
-      {:netquack, source: :community},
-      {:webdavfs, source: :community}
-    ],
+    [
+      # Install and load DuckDB extensions for remote storage
+      extensions: [
+        :httpfs,
+        {:netquack, source: :community},
+        {:webdavfs, source: :community}
+      ],
 
-    # Create secrets for WebDAV access
-    secrets: [
-      {:hetzner_storagebox, [
-        username: storagebox_user,
-        password: storagebox_password,
-        type: :webdav,
-        scope: "storagebox://#{storagebox_user}"
-      ]}
-    ],
+      # Create secrets for WebDAV access
+      secrets: [
+        {:hetzner_storagebox,
+         [
+           username: storagebox_user,
+           password: storagebox_password,
+           type: :webdav,
+           scope: "storagebox://#{storagebox_user}"
+         ]}
+      ],
 
-    # Attach DuckLake with remote parquet storage
-    attach: [
-      {
-        "ducklake:sample_phoenix_dev.ducklake",
-        [
-          as: :phoenix_db,
-          options: [
-            DATA_PATH: "storagebox://#{storagebox_user}/phoenix_db"
+      # Attach DuckLake with remote parquet storage
+      attach: [
+        {
+          "ducklake:sample_phoenix_dev.ducklake",
+          [
+            as: :phoenix_db,
+            options: [
+              DATA_PATH: "storagebox://#{storagebox_user}/phoenix_db"
+            ]
           ]
+        }
+      ],
+
+      # Set database-specific configuration for DuckLake
+      configs: [
+        phoenix_db: [
+          data_inlining_row_limit: 10000,
+          parquet_compression: :zstd,
+          parquet_compression_level: 20,
+          parquet_version: 2
         ]
-      }
-    ],
+      ],
 
-    # Set database-specific configuration for DuckLake
-    configs: [
-      phoenix_db: [
-        data_inlining_row_limit: 10000,
-        parquet_compression: :zstd,
-        parquet_compression_level: 20,
-        parquet_version: 2
-      ]
-    ],
-
-    # Use attached database as default
-    use: :phoenix_db
-  ]
-else
-  # Basic configuration without WebDAV
-  []
-end
+      # Use attached database as default
+      use: :phoenix_db
+    ]
+  else
+    # Basic configuration without WebDAV
+    []
+  end
 
 # Merge base and advanced configuration
-config :sample_phoenix, SamplePhoenix.DuckLakeRepo,
-  Keyword.merge(base_ducklake_config, advanced_ducklake_config)
+config :sample_phoenix,
+       SamplePhoenix.DuckLakeRepo,
+       Keyword.merge(base_ducklake_config, advanced_ducklake_config)
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -117,6 +121,7 @@ config :sample_phoenix, SamplePhoenixWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
+  # gitleaks:allow - development secret, safe to commit
   secret_key_base: "187nuUOtsU3S1LEtOWHSTWNyyieuteUff5K45QWMM2JTmEYdQ+bWahpd1P2yibUs",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:sample_phoenix, ~w(--sourcemap=inline --watch)]},

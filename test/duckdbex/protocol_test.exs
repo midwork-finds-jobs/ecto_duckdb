@@ -22,7 +22,10 @@ defmodule Duckdbex.ProtocolTest do
         # Create and populate first database
         {:ok, db1} = Duckdbex.open(db1_path)
         {:ok, conn1} = Duckdbex.connection(db1)
-        {:ok, result_ref} = Duckdbex.query(conn1, "CREATE TABLE test_table (id INTEGER, name VARCHAR)")
+
+        {:ok, result_ref} =
+          Duckdbex.query(conn1, "CREATE TABLE test_table (id INTEGER, name VARCHAR)")
+
         Duckdbex.release(result_ref)
         {:ok, result_ref} = Duckdbex.query(conn1, "INSERT INTO test_table VALUES (1, 'Alice')")
         Duckdbex.release(result_ref)
@@ -41,7 +44,14 @@ defmodule Duckdbex.ProtocolTest do
 
         # Verify we can query the attached database
         {:ok, conn} = DBConnection.start_link(Protocol, opts)
-        {:ok, _, result} = DBConnection.prepare_execute(conn, %Duckdbex.Query{query: "SELECT * FROM db1.test_table"}, [])
+
+        {:ok, _, result} =
+          DBConnection.prepare_execute(
+            conn,
+            %Duckdbex.Query{query: "SELECT * FROM db1.test_table"},
+            []
+          )
+
         assert length(result.rows) == 1
         assert hd(result.rows) == [1, "Alice"]
 
@@ -80,7 +90,9 @@ defmodule Duckdbex.ProtocolTest do
         {:ok, conn} = DBConnection.start_link(Protocol, opts)
 
         # Query should work without database prefix because of USE
-        {:ok, _, result} = DBConnection.prepare_execute(conn, %Duckdbex.Query{query: "SELECT * FROM users"}, [])
+        {:ok, _, result} =
+          DBConnection.prepare_execute(conn, %Duckdbex.Query{query: "SELECT * FROM users"}, [])
+
         assert length(result.rows) == 1
         assert hd(result.rows) == [1, "Bob"]
 

@@ -3,9 +3,9 @@ defmodule SamplePhoenix.Blog.Post do
   import Ecto.Changeset
 
   schema "posts" do
-    field :title, :string
-    field :body, :string
-    field :published, :boolean, default: false
+    field(:title, :string)
+    field(:body, :string)
+    field(:published, :boolean, default: false)
 
     timestamps(type: :naive_datetime)
   end

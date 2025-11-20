@@ -31,7 +31,7 @@ defmodule SamplePhoenix.Demo do
 
     # Query published posts only
     IO.puts("\n--- Published Posts ---")
-    published = Repo.all(from p in Post, where: p.published == true)
+    published = Repo.all(from(p in Post, where: p.published == true))
 
     Enum.each(published, fn post ->
       IO.puts("  #{post.title}: #{post.body}")

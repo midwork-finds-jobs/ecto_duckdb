@@ -433,7 +433,11 @@ defmodule Ecto.Adapters.DuckDB do
 
   defp dump_schema(config) do
     # Use SHOW ALL TABLES and then get CREATE statements for each
-    case run_with_cmd("duckdb", [config[:database], "-c", "SELECT sql FROM duckdb_tables() WHERE schema='main'"]) do
+    case run_with_cmd("duckdb", [
+           config[:database],
+           "-c",
+           "SELECT sql FROM duckdb_tables() WHERE schema='main'"
+         ]) do
       {output, 0} -> {:ok, output}
       {output, _} -> {:error, output}
     end

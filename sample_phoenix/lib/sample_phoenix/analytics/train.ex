@@ -10,23 +10,23 @@ defmodule SamplePhoenix.Analytics.Train do
   import Ecto.Changeset
 
   schema "trains" do
-    field :service_number, :integer
-    field :station_code, :string
-    field :service_type_code, :string
-    field :company_code, :integer
-    field :service_type_description, :string
-    field :company_name, :string
-    field :service_parts, :string
-    field :stop_type_code, :string
-    field :stop_type_description, :string
-    field :departure_time, :time
-    field :arrival_time, :time
-    field :arrival_delay_minutes, :integer
-    field :departure_delay_minutes, :integer
-    field :canceled, :boolean
-    field :route_text, :string
-    field :platform, :string
-    field :platform_changed, :boolean
+    field(:service_number, :integer)
+    field(:station_code, :string)
+    field(:service_type_code, :string)
+    field(:company_code, :integer)
+    field(:service_type_description, :string)
+    field(:company_name, :string)
+    field(:service_parts, :string)
+    field(:stop_type_code, :string)
+    field(:stop_type_description, :string)
+    field(:departure_time, :time)
+    field(:arrival_time, :time)
+    field(:arrival_delay_minutes, :integer)
+    field(:departure_delay_minutes, :integer)
+    field(:canceled, :boolean)
+    field(:route_text, :string)
+    field(:platform, :string)
+    field(:platform_changed, :boolean)
 
     timestamps(type: :utc_datetime)
   end
