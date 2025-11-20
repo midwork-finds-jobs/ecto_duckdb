@@ -353,8 +353,12 @@ defmodule Duckdbex.Protocol do
 
   # Create a DuckDB secret
   # Supports two formats:
-  # 1. Separate spec and opts: create_secret_direct!(conn, name, [username: "x", password: "y"], [type: :webdav, scope: "..."], state)
-  # 2. Combined single array: create_secret_direct!(conn, name, [username: "x", password: "y", type: :webdav, scope: "..."], [], state)
+  # 1. Separate spec and opts:
+  #    create_secret_direct!(conn, name, [username: "x", password: "y"],
+  #                          [type: :webdav, scope: "..."], state)
+  # 2. Combined single array:
+  #    create_secret_direct!(conn, name, [username: "x", password: "y",
+  #                          type: :webdav, scope: "..."], [], state)
   defp create_secret_direct!(conn, name, spec, secret_opts, state) do
     # Special keys that should be treated as secret options, not spec parameters
     secret_option_keys = [:type, :scope, :persistent]
@@ -496,15 +500,13 @@ defmodule Duckdbex.Protocol do
 
   # Format secret options for CREATE SECRET statement (inline values)
   defp format_secret_options_inline(opts) do
-    opts
-    |> Enum.map(fn
+    Enum.map_join(opts, ", ", fn
       {name, val} when is_atom(val) ->
         "#{name} #{val}"
 
       {name, val} ->
         "#{name} '#{escape(val)}'"
     end)
-    |> Enum.join(", ")
   end
 
   ## ------------------------------------------------------------------
@@ -529,21 +531,9 @@ defmodule Duckdbex.Protocol do
   end
 
   defp install_extension!(conn, {name, opts}, state) do
-    # Build FROM clause based on source option
-    from =
-      case opts[:source] do
-        :core -> " FROM core"
-        :nightly -> " FROM core_nightly"
-        :community -> " FROM community"
-        nil -> ""
-        :default -> ""
-        repo when is_binary(repo) -> " FROM '#{escape(repo)}'"
-      end
-
-    # Add FORCE if requested
+    from = build_extension_from_clause(opts[:source])
     force = if opts[:force], do: "FORCE ", else: ""
 
-    # Install the extension
     install_sql = "#{force}INSTALL #{name}#{from}"
     log_debug(state, "Installing extension: #{install_sql}")
 
@@ -551,33 +541,7 @@ defmodule Duckdbex.Protocol do
       {:ok, result_ref} ->
         Duckdbex.release(result_ref)
         log_debug(state, "Installed extension: #{name}")
-
-        # Load extension if requested (default: true)
-        if Keyword.get(opts, :load, true) do
-          load_sql = "LOAD #{name}"
-          log_debug(state, "Loading extension: #{load_sql}")
-
-          case Duckdbex.query(conn, load_sql) do
-            {:ok, load_result_ref} ->
-              Duckdbex.release(load_result_ref)
-              log_debug(state, "Loaded extension: #{name}")
-              :ok
-
-            {:error, reason} ->
-              error_msg = """
-              Failed to load extension '#{name}': #{inspect(reason)}
-
-              Troubleshooting:
-              - Extension was installed but failed to load
-              - Check if extension is compatible with your DuckDB version
-              - Verify extension binary is not corrupted
-              """
-
-              raise Duckdbex.Error, message: error_msg
-          end
-        else
-          :ok
-        end
+        load_extension_if_requested!(conn, name, opts, state)
 
       {:error, reason} ->
         error_msg = """
@@ -592,6 +556,45 @@ defmodule Duckdbex.Protocol do
         """
 
         raise Duckdbex.Error, message: error_msg
+    end
+  end
+
+  defp build_extension_from_clause(source) do
+    case source do
+      :core -> " FROM core"
+      :nightly -> " FROM core_nightly"
+      :community -> " FROM community"
+      nil -> ""
+      :default -> ""
+      repo when is_binary(repo) -> " FROM '#{escape(repo)}'"
+    end
+  end
+
+  defp load_extension_if_requested!(conn, name, opts, state) do
+    if Keyword.get(opts, :load, true) do
+      load_sql = "LOAD #{name}"
+      log_debug(state, "Loading extension: #{load_sql}")
+
+      case Duckdbex.query(conn, load_sql) do
+        {:ok, load_result_ref} ->
+          Duckdbex.release(load_result_ref)
+          log_debug(state, "Loaded extension: #{name}")
+          :ok
+
+        {:error, reason} ->
+          error_msg = """
+          Failed to load extension '#{name}': #{inspect(reason)}
+
+          Troubleshooting:
+          - Extension was installed but failed to load
+          - Check if extension is compatible with your DuckDB version
+          - Verify extension binary is not corrupted
+          """
+
+          raise Duckdbex.Error, message: error_msg
+      end
+    else
+      :ok
     end
   end
 end
