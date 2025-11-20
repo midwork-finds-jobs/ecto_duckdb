@@ -13,6 +13,7 @@ defmodule EctoDuckDB.MixProject do
       homepage_url: "https://github.com/midwork-finds-jobs/ecto_duckdb",
       deps: deps(),
       description: description(),
+      package: package(),
       elixirc_options: [warnings_as_errors: true],
       elixirc_paths: elixirc_paths(Mix.env()),
 
@@ -44,6 +45,18 @@ defmodule EctoDuckDB.MixProject do
 
   defp description do
     "A DuckDB Ecto3 adapter using duckdbex."
+  end
+
+  defp package do
+    [
+      # This option is only needed when you don't want to use the OTP application name
+      name: "ecto_duckdb",
+      # These are the default files included in the package
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*
+                CHANGELOG*),
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/midwork-finds-jobs/ecto_duckdb"}
+    ]
   end
 
   defp docs do
