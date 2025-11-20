@@ -1,4 +1,6 @@
 defmodule EctoDuckdb.User do
+  @moduledoc "Test schema for User"
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -19,6 +21,8 @@ defmodule EctoDuckdb.User do
 end
 
 defmodule EctoDuckdb.Post do
+  @moduledoc "Test schema for Post"
+
   use Ecto.Schema
   import Ecto.Changeset
 

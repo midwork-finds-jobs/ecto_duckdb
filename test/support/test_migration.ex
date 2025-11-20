@@ -1,4 +1,6 @@
 defmodule EctoDuckdb.TestMigration do
+  @moduledoc "Test migration for setting up test database schema"
+
   use Ecto.Migration
 
   def change do

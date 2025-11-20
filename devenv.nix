@@ -33,6 +33,7 @@
       name = "mix test";
       entry = "mix test";
       files = "\\.(ex|exs|heex)$";
+      excludes = [ "^sample_phoenix/" ];
     };
     # Nix files
     nixfmt-rfc-style.enable = true;
